@@ -168,7 +168,7 @@ router.post("/users/:id/reset-password", async (req: AuthRequest, res) => {
   if (!target || target.role === "ADMIN" || target.role === "UTILISATRICE") return res.status(404).json({ error: "Compte introuvable." });
   const pwd = tempPassword();
   await prisma.user.update({ where: { id: target.id }, data: { passwordHash: await bcrypt.hash(pwd, 10), mustChangePassword: true } });
-  await audit(req.userId, "RESET_PASSWORD", target.email);
+  await audit(req.userId, "RESET_PASSWORD", target.email ?? target.pseudonyme);
   res.json({ temporaryPassword: pwd });
 });
 
