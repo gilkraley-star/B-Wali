@@ -54,7 +54,7 @@ const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJA
   check("refus sans motif interdit", rr2.status === 400);
 
   // 3. Un compte utilisatrice ne doit pas accéder à l'admin
-  r = await call("POST", "/auth/signup", { body: { email: "fille@test.org", password: "motdepasse1", pseudonyme: "fille_test", birthDate: "2003-04-12", acceptTerms: true } });
+  r = await call("POST", "/auth/signup", { body: { email: "fille@test.org", password: "motdepasse1", pseudonyme: "fille_test", birthDate: "2003-04-12", acceptTerms: true, photo: PNG } });
   check("inscription utilisatrice", r.status === 201);
   const fille = r.data.token;
   r = await call("GET", "/admin/stats", { token: fille });
@@ -72,7 +72,7 @@ const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJA
   check("public : fiches visibles après validation, avec sources", r.status === 200 && r.data.length >= 8 && r.data[0].sources.length > 0);
   check("public : pas de champs internes exposés", !("reviewNote" in r.data[0]) && !("sourcesJson" in r.data[0]));
   r = await call("GET", "/catalog/income");
-  check("public : activités de revenus (dès 10 000 FCFA)", r.status === 200 && r.data.length === 8 && r.data.some((a) => a.capitalMinFcfa === 10000));
+  check("public : activités de revenus (dont 2 sans argent)", r.status === 200 && r.data.length === 10 && r.data.filter((a) => a.capitalMinFcfa === 0).length === 2);
 
   // 5. Création d'un compte professionnel avec photo
   r = await call("POST", "/admin/users", { token: admin, body: { email: "sf@test.org", fullName: "Mireille Test", profession: "Sage-femme", role: "PROFESSIONNELLE", certified: true, photo: "data:image/png;base64,AAAA" } });
