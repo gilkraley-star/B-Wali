@@ -1,3 +1,4 @@
+import { useAuth } from "../context/AuthContext";
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, FlatList, StyleSheet, Text, View } from "react-native";
 import { apiRequest, ApiError } from "../api/client";
@@ -6,6 +7,7 @@ import { Card, PrimaryButton, ScreenTitle } from "../theme/ui";
 import { Source, SourcesBlock } from "../components/Sources";
 
 interface Course {
+  liveState?: string;
   id: string;
   slug: string;
   title: string;
@@ -30,7 +32,9 @@ function fmt(d?: string | null) {
   return d ? new Date(d).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "Date à venir";
 }
 
-export default function FormationsScreen() {
+export default function FormationsScreen({ navigation }: any) {
+  const { user } = useAuth();
+  const isTeacher = ["FORMATRICE", "PROFESSIONNELLE", "COACH", "ADMIN"].includes(user?.role || "");
   const [courses, setCourses] = useState<Course[]>([]);
   const [mine, setMine] = useState<Record<string, Enrollment>>({});
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +97,12 @@ export default function FormationsScreen() {
             ) : (
               <Text style={styles.meta}>📅 {fmt(c.startsAt)}</Text>
             )}
+            {c.liveState === "EN_COURS" ? (
+              <PrimaryButton title="🔴 Rejoindre le direct" onPress={() => navigation.navigate("Live", { slug: c.slug, host: false })} />
+            ) : null}
+            {isTeacher ? (
+              <PrimaryButton title="🎥 Commencer le direct" onPress={() => navigation.navigate("Live", { slug: c.slug, host: true })} />
+            ) : null}
             {e ? (
               <Text style={styles.ok}>
                 ✓ Inscrite

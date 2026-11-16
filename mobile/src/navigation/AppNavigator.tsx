@@ -22,6 +22,7 @@ import NewPostScreen from "../screens/NewPostScreen";
 import ThreadScreen from "../screens/ThreadScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import ShareScreen from "../screens/ShareScreen";
+import LiveScreen from "../screens/LiveScreen";
 import FormationsScreen from "../screens/FormationsScreen";
 import RevenusScreen from "../screens/RevenusScreen";
 import ProfessionnellesScreen from "../screens/ProfessionnellesScreen";
@@ -123,6 +124,7 @@ export default function AppNavigator() {
         ) : user ? (
           <>
             <RootStack.Screen name="Main" component={MainTabs} />
+            <RootStack.Screen name="Live" component={LiveScreen} options={{ headerShown: false }} />
             <RootStack.Screen name="Formations" component={FormationsScreen} options={{ headerShown: true, title: "Formations" }} />
             <RootStack.Screen name="Partager" component={ShareScreen} options={{ headerShown: true, title: "Inviter une amie" }} />
             <RootStack.Screen name="Revenus" component={RevenusScreen} options={{ headerShown: true, title: "Gagner un revenu" }} />

@@ -1,4 +1,7 @@
 import React from "react";
+import { registerGlobals } from "@livekit/react-native";
+
+registerGlobals();
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "./src/context/AuthContext";

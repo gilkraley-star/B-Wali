@@ -9,6 +9,7 @@ function publicCourse(c: any) {
   return {
     id: c.id,
     slug: c.slug,
+    liveState: c.liveState,
     title: c.title,
     summary: c.summary,
     icon: c.icon,
