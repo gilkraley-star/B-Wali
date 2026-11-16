@@ -5,6 +5,9 @@ import { apiRequest } from "../api/client";
 // (pour ne pas le perdre si le téléphone casse) dès qu'il y a du réseau. Le calcul se fait sur le téléphone.
 
 const KEY = "bewali.cycle.local";
+const LEN_KEY = "bewali.cycle.len";
+export async function getCycleLen(): Promise<number> { const v = parseInt((await AsyncStorage.getItem(LEN_KEY)) || "", 10); return v >= 15 && v <= 60 ? v : 28; }
+export async function setCycleLen(n: number) { await AsyncStorage.setItem(LEN_KEY, String(n)); }
 
 export interface LocalPeriod {
   id: string;
@@ -43,9 +46,10 @@ export async function addLocalPeriod(startDate: string): Promise<LocalPeriod[]> 
 }
 
 /** Estimation calculée sur le téléphone, même règle que le serveur (moyenne des derniers cycles). */
-export function estimateLocal(periods: LocalPeriod[]): LocalEstimate {
+export function estimateLocal(periods: LocalPeriod[], defaultLen = 28): LocalEstimate {
   const recent = [...periods].sort((a, b) => b.startDate.localeCompare(a.startDate)).slice(0, 6);
-  if (recent.length < 2) return { averageCycleLength: null, nextEstimatedStart: null };
+  if (recent.length === 0) return { averageCycleLength: null, nextEstimatedStart: null };
+  if (recent.length < 2) return { averageCycleLength: defaultLen, nextEstimatedStart: new Date(Date.parse(recent[0].startDate) + defaultLen * 86400000).toISOString().slice(0, 10) };
   const day = 86400000;
   const diffs: number[] = [];
   for (let i = 0; i < recent.length - 1; i++) {

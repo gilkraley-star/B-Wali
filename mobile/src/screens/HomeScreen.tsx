@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import { estimateLocal, getCycleLen, loadLocalPeriods } from "../storage/localCycle";
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { apiRequest } from "../api/client";
 import { useAuth } from "../context/AuthContext";
@@ -24,7 +26,13 @@ const TILES: { label: string; e: string; bg: string; go: string }[] = [
 export default function HomeScreen({ navigation }: any) {
   const { user } = useAuth();
   const [estimate, setEstimate] = useState<Estimate | null>(null);
-  useEffect(() => { apiRequest<Estimate>("/cycle/estimate").then(setEstimate).catch(() => {}); }, []);
+  useFocusEffect(useCallback(() => {
+    (async () => {
+      const local = estimateLocal(await loadLocalPeriods(), await getCycleLen());
+      if (local.nextEstimatedStart) { setEstimate({ nextEstimatedStart: local.nextEstimatedStart, disclaimer: "" }); return; }
+      apiRequest<Estimate>("/cycle/estimate", { silent: true }).then(setEstimate).catch(() => {});
+    })();
+  }, []));
   const isPro = ["PROFESSIONNELLE", "COACH", "FORMATRICE"].includes(user?.role || "");
 
   return (

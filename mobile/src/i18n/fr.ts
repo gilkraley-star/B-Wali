@@ -1,6 +1,6 @@
 export const fr = {
   app_name: "Bê Wali",
-  app_tagline: "Mon corps, ma santé, ma communauté.",
+  app_tagline: "« Mon corps, ma santé, ma communauté »",
 
   // Onboarding / Auth
   onboarding_welcome: "Bienvenue sur Bê Wali",

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
@@ -30,9 +30,18 @@ export default function SignupScreen({ navigation }: any) {
   const [year, setYear] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
+  const [step, setStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const goStep2 = () => {
+    setError(null);
+    if (!contact.trim()) { setError(byPhone ? "Écris ton numéro de téléphone." : "Écris ton e-mail."); return; }
+    if (password.length < 8) { setError("Choisis un mot de passe d'au moins 8 caractères."); return; }
+    if (pseudonyme.trim().length < 3) { setError("Choisis un pseudonyme d'au moins 3 lettres."); return; }
+    if (!acceptTerms) { setError("Lis et accepte les conditions d'utilisation pour continuer."); return; }
+    setStep(2);
+  };
   const handleSignup = async () => {
     setError(null);
     const d = parseInt(day, 10), m = parseInt(month, 10), y = parseInt(year, 10);
@@ -60,20 +69,15 @@ export default function SignupScreen({ navigation }: any) {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView contentContainerStyle={styles.content}>
-        <ScreenTitle>{t("signup")}</ScreenTitle>
-
+        <Text style={styles.step}>ÉTAPE {step} SUR 2</Text>
+        <ScreenTitle>{step === 1 ? t("signup") : "Ajoute ta photo"}</ScreenTitle>
+        {step === 1 ? (<>
         <FieldLabel>{byPhone ? "Ton numéro de téléphone" : "Ton e-mail"}</FieldLabel>
         <TextInput value={contact} onChangeText={setContact} autoCapitalize="none" keyboardType={byPhone ? "phone-pad" : "email-address"} placeholder={byPhone ? "70 12 34 56" : "nom@exemple.com"} />
         <Text style={{ color: colors.rose, fontWeight: "700", marginTop: 6 }} onPress={() => { setByPhone(!byPhone); setContact(""); }}>
           {byPhone ? "Je préfère utiliser un e-mail" : "Je n'ai pas d'e-mail : utiliser mon numéro"}
         </Text>
         <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4 }}>Ton numéro reste privé. Personne ne le voit dans l'appli.</Text>
-
-        <FieldLabel>Ta photo</FieldLabel>
-        <Text style={{ color: colors.textMuted, fontSize: 12.5, marginBottom: 8, lineHeight: 18 }}>Ajoute une photo de toi. Elle n'est pas montrée aux autres filles dans la communauté.</Text>
-        {photo && <Image source={{ uri: photo.uri }} style={{ width: 110, height: 110, borderRadius: 55, marginBottom: 8 }} />}
-        <PrimaryButton title="📷 Prendre une photo" variant="secondary" onPress={() => addPhoto(true)} />
-        <PrimaryButton title="🖼️ Choisir dans mes photos" variant="secondary" onPress={() => addPhoto(false)} />
 
         <FieldLabel>{t("password")}</FieldLabel>
         <TextInput value={password} onChangeText={setPassword} secureTextEntry />
@@ -100,15 +104,24 @@ export default function SignupScreen({ navigation }: any) {
             ))}
           </View>
         )}
-        <View style={styles.consentRow}>
-          <Switch value={acceptTerms} onValueChange={setAcceptTerms} trackColor={{ true: colors.rose }} />
+        <TouchableOpacity style={styles.accept} onPress={() => setAcceptTerms(!acceptTerms)} activeOpacity={0.8}>
+          <View style={[styles.box, acceptTerms && styles.boxOn]}>{acceptTerms ? <Text style={{ color: "#fff", fontSize: 13 }}>✓</Text> : null}</View>
           <Text style={styles.consentText}>{t("accept_terms")}</Text>
-        </View>
+        </TouchableOpacity>
 
         <ErrorText>{error}</ErrorText>
-
-        <PrimaryButton title={t("signup")} onPress={handleSignup} loading={loading} />
-        <PrimaryButton title={t("login")} variant="secondary" onPress={() => navigation.navigate("Login")} />
+        <PrimaryButton title="Continuer" onPress={goStep2} disabled={!acceptTerms} />
+        {!acceptTerms ? <Text style={[styles.hint, { textAlign: "center" }]}>Lis et accepte les conditions pour continuer.</Text> : null}
+        <TouchableOpacity onPress={() => navigation.navigate("Login")}><Text style={styles.back}>J'ai déjà un compte</Text></TouchableOpacity>
+        </>) : (<>
+        <Text style={styles.hint}>Ajoute une photo de toi, prise maintenant ou choisie dans tes photos. Elle n'est pas montrée aux autres filles dans Entre Nous.</Text>
+        <View style={styles.circle}>{photo ? <Image source={{ uri: photo.uri }} style={{ width: 140, height: 140, borderRadius: 70 }} /> : <Text style={{ fontSize: 48 }}>📷</Text>}</View>
+        <PrimaryButton title="📷 Prendre ma photo" variant="secondary" onPress={() => addPhoto(true)} />
+        <PrimaryButton title="🖼️ Choisir dans mes photos" variant="secondary" onPress={() => addPhoto(false)} />
+        <ErrorText>{error}</ErrorText>
+        <PrimaryButton title={t("signup")} onPress={handleSignup} loading={loading} disabled={!photo} />
+        <TouchableOpacity onPress={() => { setError(null); setStep(1); }}><Text style={styles.back}>Retour</Text></TouchableOpacity>
+        </>)}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -127,13 +140,18 @@ const styles = StyleSheet.create({
   },
   ageOptionSelected: { backgroundColor: colors.rose, borderColor: colors.rose },
   ageOptionText: { color: colors.text, fontSize: 15 },
+  step: { color: "#FF5470", fontSize: 11, letterSpacing: 0.8, fontFamily: "Inter_700Bold", marginBottom: 2 },
+  accept: { flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: "#FFF0E9", borderRadius: 16, padding: 14, marginTop: 10 },
+  box: { width: 22, height: 22, borderRadius: 7, borderWidth: 2, borderColor: "#FF5470", alignItems: "center", justifyContent: "center", backgroundColor: "#fff" }, boxOn: { backgroundColor: "#FF5470" },
+  back: { textAlign: "center", color: "#8C7A86", marginTop: 10, fontFamily: "Inter_500Medium" },
+  circle: { alignSelf: "center", width: 140, height: 140, borderRadius: 70, backgroundColor: "#FFE3E8", alignItems: "center", justifyContent: "center", marginVertical: 18, overflow: "hidden" },
   consentRow: { flexDirection: "row", alignItems: "center", marginTop: spacing.md, gap: spacing.sm },
   dateRow: { flexDirection: "row", gap: spacing.sm },
-  dateBox: { flex: 1 },
+  dateBox: { flex: 1, textAlign: "center" },
   hint: { color: colors.textMuted, fontSize: 12, marginTop: spacing.xs },
   link: { color: colors.rose, fontWeight: "600", marginTop: spacing.md, fontSize: 14 },
   termsBox: { backgroundColor: "#FFF0E9", borderRadius: radius.md, padding: spacing.md, marginTop: spacing.sm },
   termsTitle: { fontWeight: "700", color: colors.text, marginBottom: spacing.sm, fontSize: 14 },
   termsText: { color: colors.text, fontSize: 13, lineHeight: 19, marginBottom: spacing.sm },
-  consentText: { flex: 1, marginLeft: spacing.sm, color: colors.text, fontSize: 14 },
+  consentText: { flex: 1, color: colors.text, fontSize: 13.5, lineHeight: 19 },
 });
