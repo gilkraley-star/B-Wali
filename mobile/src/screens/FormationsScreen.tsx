@@ -1,3 +1,4 @@
+import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
@@ -51,9 +52,7 @@ export default function FormationsScreen({ navigation }: any) {
       setError(err instanceof ApiError ? err.message : "Erreur de chargement.");
     }
   }, []);
-  useEffect(() => {
-    load();
-  }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const downloadCert = async (slug: string) => {
     try {

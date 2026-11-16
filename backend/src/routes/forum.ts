@@ -57,7 +57,7 @@ router.post("/posts", requireAuth, async (req: AuthRequest, res) => {
 // GET /api/forum/categories/:categoryId/posts — seuls les posts modérés et non masqués
 router.get("/categories/:categoryId/posts", requireAuth, async (req: AuthRequest, res) => {
   const posts = await prisma.forumPost.findMany({
-    where: { categoryId: req.params.categoryId, isModerated: true, isHidden: false },
+    where: { categoryId: req.params.categoryId, isHidden: false },
     include: { author: { select: { pseudonyme: true } }, _count: { select: { comments: true } } },
     orderBy: { createdAt: "desc" },
   });
@@ -78,7 +78,7 @@ router.get("/posts/:id", requireAuth, async (req: AuthRequest, res) => {
       },
     },
   });
-  if (!post || post.isHidden || !post.isModerated) {
+  if (!post || post.isHidden) {
     return res.status(404).json({ error: "Publication introuvable." });
   }
   // On renvoie les messages du plus ancien au plus récent (les 50 derniers seulement).
@@ -236,7 +236,7 @@ router.post("/reports", requireAuth, async (req: AuthRequest, res) => {
 // GET /api/forum/moderation/queue — publications en attente de validation
 router.get("/moderation/queue", requireAuth, requireModerator, async (_req, res) => {
   const pending = await prisma.forumPost.findMany({
-    where: { isModerated: false, isHidden: false },
+    where: { isHidden: false, reports: { some: { status: "OUVERT" } } },
     include: { author: { select: { pseudonyme: true, ageBracket: true } } },
     orderBy: { createdAt: "asc" },
   });

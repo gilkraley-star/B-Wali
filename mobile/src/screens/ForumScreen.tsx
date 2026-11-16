@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { apiRequest } from "../api/client";
 import { useAuth } from "../context/AuthContext";
@@ -17,9 +18,9 @@ export default function ForumScreen({ navigation }: any) {
   const { user } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
 
-  useEffect(() => {
-    apiRequest<Category[]>("/forum/categories").then(setCategories);
-  }, []);
+  useFocusEffect(useCallback(() => {
+    apiRequest<Category[]>("/forum/categories").then(setCategories).catch(() => {});
+  }, []));
 
   if (user && user.participatesForum === false) {
     return (

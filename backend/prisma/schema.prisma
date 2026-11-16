@@ -161,7 +161,7 @@ model ForumPost {
   author     User     @relation(fields: [authorId], references: [id])
   title      String
   body       String
-  isModerated Boolean @default(false) // true = validé visible publiquement
+  isModerated Boolean @default(true) // les messages sont visibles tout de suite ; modération après coup (signalements)
   isHidden   Boolean  @default(false) // masqué suite à signalement traité
   createdAt  DateTime @default(now())
 

@@ -3,6 +3,10 @@ import { useFonts } from "expo-font";
 import { Poppins_600SemiBold, Poppins_700Bold, Poppins_800ExtraBold } from "@expo-google-fonts/poppins";
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
 import { StatusBar } from "expo-status-bar";
+import { Text, TextInput } from "react-native";
+// La taille de police choisie dans le téléphone ne déforme plus les écrans (cartes coupées, mots cassés).
+(Text as any).defaultProps = { ...((Text as any).defaultProps || {}), allowFontScaling: false };
+(TextInput as any).defaultProps = { ...((TextInput as any).defaultProps || {}), allowFontScaling: false };
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "./src/context/AuthContext";
 import { I18nProvider } from "./src/i18n";

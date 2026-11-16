@@ -3,7 +3,7 @@ import { setSoundsEnabled, soundsEnabled } from "../games/sounds";
 import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
-import { apiRequest, setToken } from "../api/client";
+import { apiOrigin, apiRequest, setToken } from "../api/client";
 import { colors, radius, spacing } from "../theme/colors";
 import { Card, PrimaryButton, ScreenTitle } from "../theme/ui";
 
@@ -41,6 +41,8 @@ export default function SettingsScreen() {
     ]);
   };
 
+  const [server, setServer] = useState<"…" | "ok" | "ko">("…");
+  useEffect(() => { fetch(apiOrigin + "/api/health").then((r) => setServer(r.ok ? "ok" : "ko")).catch(() => setServer("ko")); }, []);
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: spacing.lg }}>
       <ScreenTitle>{t("settings_title")}</ScreenTitle>
@@ -84,6 +86,10 @@ export default function SettingsScreen() {
 
       <PrimaryButton title={t("logout")} variant="secondary" onPress={logout} />
       <PrimaryButton title={t("settings_delete_account")} variant="danger" onPress={handleDeleteAccount} />
+      <Text style={{ textAlign: "center", color: "#8C7A86", fontSize: 11.5, marginTop: 14, marginBottom: 6 }}>
+        {server === "ok" ? "✅ Connectée au serveur" : server === "ko" ? "⚠️ Serveur injoignable (mode hors ligne)" : "Connexion…"}
+        {user?.pending ? " · compte pas encore créé en ligne" : ""}
+      </Text>
     </ScrollView>
   );
 }

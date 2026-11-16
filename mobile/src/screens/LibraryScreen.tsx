@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { apiRequest, ApiError } from "../api/client";
 import { cacheSavedArticles, getCachedSavedArticles } from "../storage/offlineStorage";
@@ -45,9 +46,7 @@ export default function LibraryScreen({ navigation }: any) {
     }
   };
 
-  useEffect(() => {
-    load(selectedCategory);
-  }, [selectedCategory]);
+  useFocusEffect(useCallback(() => { load(selectedCategory); }, [selectedCategory]));
 
   return (
     <FlatList
