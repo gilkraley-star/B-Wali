@@ -15,7 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Adresse publique de l'API (à définir dans Settings > Secrets and variables > Actions > Variables)
-      API_BASE_URL: ${{ vars.API_BASE_URL }}
+      API_BASE_URL: ${{ vars.API_BASE_URL || 'https://bewali.naxaci.com/api' }}
+      SHARE_URL: ${{ vars.SHARE_URL || 'https://bewali.naxaci.com/telecharger' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
