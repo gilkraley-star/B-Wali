@@ -17,6 +17,7 @@ export function NetProvider({ children }: { children: React.ReactNode }) {
   const [online, setOnline] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
   const slide = useRef(new Animated.Value(-140)).current;
+  const lastShown = useRef(0);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const insets = useSafeAreaInsets();
 
@@ -28,10 +29,14 @@ export function NetProvider({ children }: { children: React.ReactNode }) {
 
   const show = useCallback(
     (msg?: string) => {
-      setToast(msg || OFFLINE_MESSAGE);
+      // Une seule fois par minute : pas de bandeau qui revient sans cesse quand on est hors ligne.
+      const now = Date.now();
+      if (now - lastShown.current < 60000) return;
+      lastShown.current = now;
+      setToast(msg ? msg : "Pas de connexion. Wali continue hors ligne.");
       Animated.spring(slide, { toValue: 0, friction: 7, tension: 80, useNativeDriver: true }).start();
       if (hideTimer.current) clearTimeout(hideTimer.current);
-      hideTimer.current = setTimeout(hide, 4500);
+      hideTimer.current = setTimeout(hide, 3000);
     },
     [slide, hide]
   );
@@ -62,10 +67,7 @@ export function NetProvider({ children }: { children: React.ReactNode }) {
         <Animated.View pointerEvents="box-none" style={[styles.wrap, { top: insets.top + 8, transform: [{ translateY: slide }] }]}>
           <TouchableOpacity activeOpacity={0.9} onPress={hide} style={styles.toast} accessibilityRole="alert">
             <Text style={styles.icon}>📶</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.title}>Pas de connexion</Text>
-              <Text style={styles.text}>{toast}</Text>
-            </View>
+            <Text style={styles.text} numberOfLines={2}>{toast}</Text>
           </TouchableOpacity>
         </Animated.View>
       )}
@@ -74,14 +76,14 @@ export function NetProvider({ children }: { children: React.ReactNode }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: "absolute", left: 14, right: 14, zIndex: 999 },
+  wrap: { position: "absolute", left: 24, right: 24, zIndex: 999, alignItems: "center" },
   toast: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    backgroundColor: "#3B1D33",
-    borderRadius: 24,
-    paddingVertical: 14,
+    gap: 8,
+    backgroundColor: "rgba(59,29,51,0.92)",
+    borderRadius: 999,
+    paddingVertical: 9,
     paddingHorizontal: 16,
     shadowColor: "#000",
     shadowOpacity: 0.25,
@@ -89,7 +91,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 10,
   },
-  icon: { fontSize: 26 },
+  icon: { fontSize: 16 },
   title: { color: "#fff", fontWeight: "800", fontSize: 14 },
-  text: { color: "#F3DEE1", fontSize: 12.5, marginTop: 2, lineHeight: 17 },
+  text: { color: "#fff", fontSize: 12.5, lineHeight: 17, flexShrink: 1 },
 });
