@@ -164,10 +164,10 @@
   }
 
   function coursesView(){
-    return '<p><small>Ici tu suis les formations publiées et tu peux reporter une session. Le motif reste interne : les filles voient seulement « reportée — formatrice indisponible » avec la nouvelle date.</small></p>' +
+    return '<p><small>Ici tu publies chaque formation, tu programmes sa date et tu peux reporter une session. Le motif reste interne : les filles voient seulement « reportée — formatrice indisponible » avec la nouvelle date.</small></p>' +
       (state.courses.map(function(c){
         return '<div class="card"><div class="row"><div class="grow"><b>'+esc(c.title)+'</b><br><small>'+c.enrollments+' inscrite(s) · '+esc(c.status)+' · '+esc(c.state)+(c.startsAt?' · '+new Date(c.startsAt).toLocaleString("fr-FR"):'')+(c.postponedTo?' → reportée au '+new Date(c.postponedTo).toLocaleString("fr-FR"):'')+'</small></div></div>' +
-          '<div class="row" style="margin-top:8px"><input type="datetime-local" data-dt="'+c.id+'" style="max-width:230px"><button class="s" data-sched="'+c.id+'">Programmer la date</button><button class="bad" data-post="'+c.id+'">Reporter à cette date</button></div></div>';
+          (c.status !== "PUBLIE" ? '<div class="row" style="margin-top:8px"><span class="msg err grow">⚠️ Pas encore publiée : les filles ne la voient pas dans l’appli.</span><button class="ok" data-pubc="'+c.id+'">Publier maintenant</button></div>' : '<div style="margin-top:6px"><small>✅ Publiée : visible dans l’appli.</small></div>') + '<div class="row" style="margin-top:8px"><input type="datetime-local" data-dt="'+c.id+'" style="max-width:230px"><button class="s" data-sched="'+c.id+'">Programmer la date</button><button class="bad" data-post="'+c.id+'">Reporter à cette date</button></div></div>';
       }).join("") || '<div class="card">Aucune formation.</div>');
   }
 
@@ -324,6 +324,7 @@
     $$("[data-annact]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/announcements/"+b.dataset.annact, {method:"PATCH", body:{active:b.dataset.v==="true"}}); await load(); }); });
     $$("[data-anndel]").forEach(function(b){ b.onclick = act(async function(){ if(!confirm("Supprimer cette annonce ?")) return; await api("/admin/announcements/"+b.dataset.anndel, {method:"DELETE"}); await load(); }); });
     function dt(id){ var el = app.querySelector('[data-dt="'+id+'"]'); if (!el || !el.value) throw new Error("Choisis d'abord une date et une heure."); return new Date(el.value).toISOString(); }
+    $$("[data-pubc]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/review/courses/"+b.dataset.pubc, {method:"POST", body:{decision:"approve"}}); flash("Formation publiée : elle apparaît dans l’appli."); await load(); }); });
     $$("[data-sched]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/courses/"+b.dataset.sched+"/schedule", {method:"PATCH", body:{startsAt: dt(b.dataset.sched), state:"OUVERT"}}); flash("Date programmée."); await load(); }); });
     $$("[data-post]").forEach(function(b){ b.onclick = act(async function(){ var why = prompt("Motif interne (non visible des filles) :") || ""; await api("/admin/courses/"+b.dataset.post+"/schedule", {method:"PATCH", body:{postponedTo: dt(b.dataset.post), state:"REPORTEE", internalReason: why}}); flash("Session reportée. Les filles verront : formatrice indisponible + nouvelle date."); await load(); }); });
   }
