@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installe (ou met à jour) Bê Wali sur le serveur. Se lance en root : bash install.sh
+# Installe (ou met à jour) Wali sur le serveur. Se lance en root : bash install.sh
 set -euo pipefail
 DOMAIN="${BEWALI_DOMAIN:-bewali.naxaci.com}"
 LIVE_DOMAIN="${BEWALI_LIVE_DOMAIN:-live.naxaci.com}"
@@ -15,7 +15,7 @@ cd "$APP_DIR/deploy"
 
 echo "== 2/6 Réglages (une seule fois) =="
 if [ ! -f .env ] || ! grep -q "^ADMIN_PASSWORD=.\+" .env; then
-  read -r -p "E-mail du compte administrateur Bê Wali : " ADMIN_EMAIL </dev/tty
+  read -r -p "E-mail du compte administrateur Wali : " ADMIN_EMAIL </dev/tty
   read -r -s -p "Mot de passe administrateur (12 caractères ou plus, sans guillemets ni \$, invisible quand tu tapes) : " ADMIN_PASSWORD </dev/tty; echo
   NET=$(docker inspect "$CADDY_CT" --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' | awk '{print $1}')
   umask 077
@@ -63,7 +63,7 @@ if ! grep -q "^$DOMAIN" "$CADDY_DIR/Caddyfile"; then
   cp "$CADDY_DIR/Caddyfile" "$CADDY_DIR/Caddyfile.avant-bewali"
   cat >> "$CADDY_DIR/Caddyfile" <<CADDY
 
-# Bê Wali (application de santé et d'entraide pour les filles)
+# Wali (application de santé et d'entraide pour les filles)
 $DOMAIN {
         encode zstd gzip
         reverse_proxy bewali-api:4000
@@ -73,7 +73,7 @@ fi
 if ! grep -q "^$LIVE_DOMAIN" "$CADDY_DIR/Caddyfile"; then
   cat >> "$CADDY_DIR/Caddyfile" <<CADDY
 
-# Direct Bê Wali (vidéo en temps réel)
+# Direct Wali (vidéo en temps réel)
 $LIVE_DOMAIN {
         reverse_proxy bewali-livekit:7880
 }

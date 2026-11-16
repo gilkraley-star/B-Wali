@@ -9,7 +9,7 @@ import { PrimaryButton, ScreenTitle } from "../theme/ui";
 const shareUrl: string = (Constants.expoConfig?.extra as any)?.shareUrl ?? "https://bewali.example/telecharger";
 
 const MESSAGE =
-  "Salut ! Je t'invite sur Bê Wali, l'application gratuite pour les filles et les femmes : santé, infos simples, formations et idées pour gagner de l'argent. Télécharge-la ici : " +
+  "Salut ! Je t'invite sur Wali, l'application gratuite pour les filles et les femmes : santé, infos simples, formations et idées pour gagner de l'argent. Télécharge-la ici : " +
   shareUrl;
 
 // Partager l'appli avec une amie : lien (WhatsApp, SMS…) ou code QR à montrer en face.
@@ -43,7 +43,7 @@ export default function ShareScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <ScreenTitle>Inviter une amie 💌</ScreenTitle>
-      <Text style={styles.lead}>Plus on est de filles, plus on s'entraide. Envoie Bê Wali à une amie.</Text>
+      <Text style={styles.lead}>Plus on est de filles, plus on s'entraide. Envoie Wali à une amie.</Text>
 
       <View style={styles.qrCard}>
         <QRCode value={shareUrl} size={190} color={colors.text} backgroundColor="#fff" />

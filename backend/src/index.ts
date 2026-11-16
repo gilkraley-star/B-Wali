@@ -53,7 +53,7 @@ app.use(
   })
 );
 
-app.get("/api/health", (_req, res) => res.json({ status: "ok", app: "Bê Wali API" }));
+app.get("/api/health", (_req, res) => res.json({ status: "ok", app: "Wali API" }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/cycle", cycleRoutes);
@@ -78,7 +78,7 @@ app.get("/telecharger", (_req, res) => {
   res
     .status(200)
     .type("html")
-    .send('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bê Wali</title><body style="font-family:sans-serif;text-align:center;padding:48px 24px;background:#FFF6F0;color:#3B1D33"><h1>Bê Wali 💗</h1><p>L\'application arrive bientôt.</p></body>');
+    .send('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Wali</title><body style="font-family:sans-serif;text-align:center;padding:48px 24px;background:#FFF6F0;color:#3B1D33"><h1>Wali 💗</h1><p>L\'application arrive bientôt.</p></body>');
 });
 
 // Gestionnaire d'erreurs générique — ne jamais renvoyer de détails internes au client.
@@ -91,6 +91,6 @@ const PORT = process.env.PORT || 4000;
 const server = http.createServer(app);
 attachRealtime(server);
 server.listen(PORT, () => {
-  console.log(`Bê Wali API démarrée sur le port ${PORT}`);
+  console.log(`Wali API démarrée sur le port ${PORT}`);
   startRetentionJob();
 });

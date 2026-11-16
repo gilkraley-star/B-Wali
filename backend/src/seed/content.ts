@@ -1,4 +1,4 @@
-// Contenus de démarrage de Bê Wali : fiches santé, formations, activités génératrices de revenus.
+// Contenus de démarrage de Wali : fiches santé, formations, activités génératrices de revenus.
 //
 // RÈGLES :
 //  - Chaque contenu cite ses sources (organisations reconnues : OMS, UNFPA, ILO, CARE…).

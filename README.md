@@ -1,4 +1,4 @@
-# Bê Wali — Première version technique (MVP Phase 2)
+# Wali — Première version technique (MVP Phase 2)
 
 Implémentation de la Phase 2 décrite dans le dossier projet : compte + confidentialité,
 calendrier menstruel, suivi des symptômes, rappels, bibliothèque éducative de base, forum

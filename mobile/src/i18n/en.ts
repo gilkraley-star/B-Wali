@@ -1,10 +1,10 @@
 import { TranslationKeys } from "./fr";
 
 export const en: Record<TranslationKeys, string> = {
-  app_name: "Bê Wali",
+  app_name: "Wali",
   app_tagline: "My body, my health, my community.",
 
-  onboarding_welcome: "Welcome to Bê Wali",
+  onboarding_welcome: "Welcome to Wali",
   onboarding_subtitle: "A free app to understand your body, follow your health and talk safely with others.",
   get_started: "Get started",
   already_have_account: "I already have an account",

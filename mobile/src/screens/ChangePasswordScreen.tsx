@@ -30,7 +30,7 @@ export default function ChangePasswordScreen() {
   return (
     <ScrollView style={styles.c} contentContainerStyle={{ padding: spacing.lg, paddingTop: 60 }}>
       <ScreenTitle>Choisis ton mot de passe</ScreenTitle>
-      <Text style={styles.t}>Ton compte a été créé par l'équipe Bê Wali. Remplace le mot de passe provisoire par un mot de passe que toi seule connais (8 caractères minimum).</Text>
+      <Text style={styles.t}>Ton compte a été créé par l'équipe Wali. Remplace le mot de passe provisoire par un mot de passe que toi seule connais (8 caractères minimum).</Text>
       <FieldLabel>Mot de passe provisoire</FieldLabel>
       <TextInput secureTextEntry value={current} onChangeText={setCurrent} autoCapitalize="none" />
       <FieldLabel>Nouveau mot de passe</FieldLabel>

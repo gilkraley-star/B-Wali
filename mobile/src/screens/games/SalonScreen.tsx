@@ -58,7 +58,7 @@ export default function SalonScreen({ navigation }: any) {
   return (
     <ScrollView style={s.c} contentContainerStyle={{ padding: spacing.lg }}>
       <View style={s.top}><Text style={s.topT}>Jour {day}</Text><Text style={s.topT}>💰 {fmt(cash)} F</Text><Text style={s.topT}>⭐ Réputation {rep}</Text></View>
-      <View style={s.sign}><Text style={s.signT}>{owned.includes("enseigne") ? "💡 SALON BÊ WALI 💡" : "Salon Bê Wali"}</Text><Text style={{ fontSize: 22 }}>{owned.map((id) => SHOP.find((x) => x.id === id)!.e).join(" ")}</Text></View>
+      <View style={s.sign}><Text style={s.signT}>{owned.includes("enseigne") ? "💡 SALON WALI 💡" : "Salon Wali"}</Text><Text style={{ fontSize: 22 }}>{owned.map((id) => SHOP.find((x) => x.id === id)!.e).join(" ")}</Text></View>
       {phase === "scene" && (<View style={s.card}><Text style={{ fontSize: 54 }}>{cl.e}</Text><Text style={s.big}>{cl.n} arrive</Text><Text style={s.mut}>Elle veut : {sv.e} {sv.name}. Cliente {i + 1} sur 4.</Text>
         <TouchableOpacity style={s.cta} onPress={() => { setTaps(0); setPhase("work"); }}><Text style={s.ctaT}>Accueillir</Text></TouchableOpacity></View>)}
       {phase === "work" && (<View style={s.card}><Text style={s.big}>{sv.v} {sv.e}</Text><Text style={s.mut}>Touche vite {5 - Math.min(taps, 5)} fois !</Text>

@@ -1,7 +1,7 @@
 {
   "name": "be-wali-backend",
   "version": "0.1.0",
-  "description": "Backend API pour Bê Wali - plateforme numérique féminine de santé, éducation, prévention et solidarité",
+  "description": "Backend API pour Wali - plateforme numérique féminine de santé, éducation, prévention et solidarité",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",

@@ -24,7 +24,7 @@ const partial: Partial<Record<TranslationKeys, string>> = {
   logout: "Zi na yâ",
   // --- Ajouts du 16/11 : brouillon tiré de ma connaissance du sängö, PAS du dictionnaire (il n'a pas pu être consulté).
   // Tout ce qui suit est "à valider" par une locutrice. Les textes de santé restent volontairement en français.
-  onboarding_welcome: "Balaô na Bê Wali",
+  onboarding_welcome: "Balaô na Wali",
   home_greeting: "Balaô",
   tab_cycle: "Nze tî mbï",
   tab_library: "Mbï hînga",

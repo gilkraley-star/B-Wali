@@ -80,7 +80,7 @@ export default function HomeScreen({ navigation }: any) {
         </View>
         <FadeUp delay={780}>
           <TouchableOpacity style={s.invite} onPress={() => navigation.navigate("Partager")} accessibilityRole="button" activeOpacity={0.85}>
-            <Text style={{ fontSize: 20 }}>💌</Text><Text style={s.inviteT}>Inviter une amie sur Bê Wali</Text>
+            <Text style={{ fontSize: 20 }}>💌</Text><Text style={s.inviteT}>Inviter une amie sur Wali</Text>
           </TouchableOpacity>
         </FadeUp>
         {(isPro || user?.role === "ADMIN") && (

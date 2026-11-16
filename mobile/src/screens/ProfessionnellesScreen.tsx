@@ -34,7 +34,7 @@ export default function ProfessionnellesScreen() {
       ListHeaderComponent={
         <View>
           <ScreenTitle>Nos professionnelles</ScreenTitle>
-          <Text style={styles.intro}>Sages-femmes, médecins, psychologues, coachs : des personnes vérifiées par l'équipe Bê Wali.</Text>
+          <Text style={styles.intro}>Sages-femmes, médecins, psychologues, coachs : des personnes vérifiées par l'équipe Wali.</Text>
           {error && <Text style={{ color: colors.danger }}>{error}</Text>}
         </View>
       }

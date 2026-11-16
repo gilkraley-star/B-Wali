@@ -16,7 +16,7 @@ export default function OnboardingScreen({ navigation }: any) {
       <SafeAreaView style={{ flex: 1, justifyContent: "space-between" }}>
         <TouchableOpacity style={s.lang} onPress={() => setLang(next)} accessibilityLabel="Changer de langue"><Text style={s.langT}>{lang === "fr" ? "FR" : lang === "sg" ? "SG" : "EN"}</Text></TouchableOpacity>
         <View style={s.content}>
-          <FadeUp delay={50}><View style={s.logoCard}><Image source={require("../../assets/logo.png")} style={s.logo} resizeMode="contain" accessibilityLabel="Bê Wali" /></View></FadeUp>
+          <FadeUp delay={50}><View style={s.logoCard}><Image source={require("../../assets/logo.png")} style={s.logo} resizeMode="contain" accessibilityLabel="Wali" /></View></FadeUp>
           <FadeUp delay={150}><Text style={s.title}>{t("onboarding_welcome").replace(/ (sur|on) /, " $1\n")}</Text></FadeUp>
           <FadeUp delay={230}><Text style={s.tagline}>{t("app_tagline")}</Text></FadeUp>
           <FadeUp delay={300}><Text style={s.subtitle}>{t("onboarding_subtitle")}</Text></FadeUp>

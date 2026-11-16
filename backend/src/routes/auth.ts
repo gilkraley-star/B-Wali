@@ -51,7 +51,7 @@ router.post("/signup", async (req, res) => {
   const age = ageFromBirthDate(birthDate);
   if (age < 0 || age > 110) return res.status(400).json({ error: "Vérifie ta date de naissance." });
   if (age < MIN_AGE) {
-    return res.status(400).json({ error: "Bê Wali est réservée aux filles et aux femmes à partir de " + MIN_AGE + " ans." });
+    return res.status(400).json({ error: "Wali est réservée aux filles et aux femmes à partir de " + MIN_AGE + " ans." });
   }
   const ageBracket = bracketFromAge(age);
 
@@ -118,7 +118,7 @@ router.post("/login", async (req, res) => {
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) return res.status(401).json({ error: BAD });
   if (!user.active) {
-    return res.status(403).json({ error: "Ce compte est désactivé. Contacte l'équipe Bê Wali." });
+    return res.status(403).json({ error: "Ce compte est désactivé. Contacte l'équipe Wali." });
   }
 
   await refreshBracket(user);

@@ -1,9 +1,9 @@
 export const fr = {
-  app_name: "Bê Wali",
+  app_name: "Wali",
   app_tagline: "« Mon corps, ma santé, ma communauté »",
 
   // Onboarding / Auth
-  onboarding_welcome: "Bienvenue sur Bê Wali",
+  onboarding_welcome: "Bienvenue sur Wali",
   onboarding_subtitle:
     "Une application gratuite pour comprendre ton corps, suivre ta santé et échanger en toute sécurité.",
   get_started: "Commencer",

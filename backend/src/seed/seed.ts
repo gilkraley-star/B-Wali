@@ -10,7 +10,7 @@ import { STORIES } from "./stories";
 async function main() {
   // Première annonce de l'accueil (une seule fois ; ensuite elles se gèrent dans l'administration)
   if ((await prisma.announcement.count()) === 0) {
-    await prisma.announcement.create({ data: { emoji: "💗", title: "Bienvenue sur Bê Wali !", body: "Ici, tu peux poser tes questions, apprendre, jouer et te faire des amies en toute discrétion.", color: "violet", target: "Assistant" } });
+    await prisma.announcement.create({ data: { emoji: "💗", title: "Bienvenue sur Wali !", body: "Ici, tu peux poser tes questions, apprendre, jouer et te faire des amies en toute discrétion.", color: "violet", target: "Assistant" } });
   }
   console.log("Seed : catégories d'articles…");
 
@@ -131,7 +131,7 @@ async function main() {
         email: adminEmail,
         passwordHash: await bcrypt.hash(adminPassword, 10),
         pseudonyme: "admin-bewali",
-        fullName: "Administration Bê Wali",
+        fullName: "Administration Wali",
         ageBracket: "FEMME_ADULTE",
         role: "ADMIN",
       },

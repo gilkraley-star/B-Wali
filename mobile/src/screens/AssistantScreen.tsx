@@ -4,7 +4,7 @@ import { ApiError, apiRequest } from "../api/client";
 import { colors } from "../theme/colors";
 
 interface Msg { role: "user" | "assistant"; content: string }
-const HELLO: Msg = { role: "assistant", content: "Bonjour 👋 Je suis ta conseillère Bê Wali. Je peux t'aider à comprendre ton corps et t'orienter vers les bonnes personnes. Comment puis-je t'aider ?" };
+const HELLO: Msg = { role: "assistant", content: "Bonjour 👋 Je suis ta conseillère Wali. Je peux t'aider à comprendre ton corps et t'orienter vers les bonnes personnes. Comment puis-je t'aider ?" };
 const IDEAS = ["Mes règles sont en retard", "J'ai mal au ventre pendant les règles", "Je me sens triste", "C'est quoi le consentement ?"];
 
 export default function AssistantScreen({ navigation }: any) {

@@ -1,4 +1,4 @@
-// Bibliothèque d'histoires de Bê Wali.
+// Bibliothèque d'histoires de Wali.
 // Seules des histoires ORIGINALES (écrites pour l'application) sont fournies ici en texte complet.
 // Les contes du domaine public et les histoires sous licence libre sont importés par
 // scripts/import-asp.mjs (African Storybook) avec le nom de l'auteur et la licence.
@@ -29,7 +29,7 @@ export const STORIES: StorySeed[] = [
     ageMin: 10,
     icon: "🧵",
     origin: "ORIGINALE",
-    credit: "Histoire originale Bê Wali",
+    credit: "Histoire originale Wali",
     readMin: 9,
     reviewNote: "À relire par une enseignante ou une conteuse locale. Vérifier les prix cités.",
     chapters: [
@@ -65,7 +65,7 @@ export const STORIES: StorySeed[] = [
     ageMin: 10,
     icon: "🌧️",
     origin: "ORIGINALE",
-    credit: "Histoire originale Bê Wali",
+    credit: "Histoire originale Wali",
     readMin: 7,
     reviewNote: "À relire par une sage-femme (exactitude) et par une enseignante (ton).",
     chapters: [

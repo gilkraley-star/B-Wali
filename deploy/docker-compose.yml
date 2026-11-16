@@ -1,4 +1,4 @@
-# Bê Wali sur le serveur NAXACI : un conteneur de plus, branché sur le Caddy déjà en place.
+# Wali sur le serveur NAXACI : un conteneur de plus, branché sur le Caddy déjà en place.
 services:
   bewali-api:
     build: ../backend

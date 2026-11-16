@@ -1,4 +1,4 @@
-// Bê Wali — schéma de base de données
+// Wali — schéma de base de données
 //
 // Dev: SQLite (zéro configuration, fichier local dev.db)
 // Prod: changez juste `provider` en "postgresql" et DATABASE_URL dans .env
@@ -295,7 +295,7 @@ model AuditLog {
 
 // --- BIBLIOTHÈQUE D'HISTOIRES (contes, héroïnes, éducation, romans 18+) ---
 // Règles : on ne copie JAMAIS un texte protégé. Chaque histoire indique son origine et sa licence.
-//   ORIGINALE      : écrite pour Bê Wali (ou par une autrice partenaire qui a donné son accord)
+//   ORIGINALE      : écrite pour Wali (ou par une autrice partenaire qui a donné son accord)
 //   DOMAINE_PUBLIC : auteur mort depuis plus de 70 ans (vérifier la loi du pays)
 //   LICENCE_LIBRE  : Creative Commons (ex. African Storybook, CC BY ou CC BY-NC) — nom de l'auteur obligatoire
 

@@ -47,6 +47,6 @@ jobs:
         run: |
           cp mobile/android/app/build/outputs/apk/release/*.apk BeWali.apk
           gh release create "apk-${{ github.run_number }}" BeWali.apk \
-            --title "Bê Wali — APK (build ${{ github.run_number }})" \
+            --title "Wali — APK (build ${{ github.run_number }})" \
             --notes "APK de test pour Android. Ouvre cette page sur ton téléphone, télécharge BeWali.apk et installe-le (autorise « sources inconnues » si le téléphone le demande)." \
             --repo "${{ github.repository }}"
