@@ -13,13 +13,20 @@ const router = Router();
 // GET /api/forum/categories
 router.get("/categories", requireAuth, async (req: AuthRequest, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.userId } });
-  const categories = await prisma.forumCategory.findMany();
+  const categories = await prisma.forumCategory.findMany({ orderBy: [{ sort: "asc" }] });
+  const last = await prisma.forumPost.groupBy({ by: ["categoryId"], where: { isHidden: false }, _max: { createdAt: true }, _count: { _all: true } });
+  const info = new Map<string, { at: number; n: number }>(last.map((g: any) => [g.categoryId, { at: g._max.createdAt ? g._max.createdAt.getTime() : 0, n: g._count._all }] as [string, { at: number; n: number }]));
   // Espaces distincts selon l'âge (section 5.2) : une catégorie restreinte à une tranche
   // d'âge n'est visible que pour cette tranche.
   const visible = categories.filter(
     (c: (typeof categories)[number]) => !c.restrictedTo || c.restrictedTo === user?.ageBracket
   );
-  res.json(visible);
+  // Le thème (ou sous-thème) où l'on vient d'écrire remonte en premier.
+  const withInfo = visible.map((c: any) => ({ ...c, lastPostAt: info.get(c.id)?.at || 0, postCount: info.get(c.id)?.n || 0 }));
+  const childMax = (id: string) => Math.max(0, ...withInfo.filter((x: any) => x.parentId === id).map((x: any) => x.lastPostAt));
+  const out = withInfo.map((c: any) => ({ ...c, lastPostAt: c.parentId ? c.lastPostAt : Math.max(c.lastPostAt, childMax(c.id)) }));
+  out.sort((a: any, b: any) => b.lastPostAt - a.lastPostAt || a.sort - b.sort);
+  res.json(out);
 });
 
 const postSchema = z.object({

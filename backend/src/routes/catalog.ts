@@ -17,6 +17,7 @@ function publicCourse(c: any) {
     icon: c.icon,
     partner: c.partner,
     durationMin: c.durationMin,
+    trainerName: c.trainerName, trainerTitle: c.trainerTitle, location: c.location, seats: c.seats,
     format: c.format,
     startsAt: c.startsAt,
     postponedTo: c.postponedTo,

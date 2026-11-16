@@ -295,6 +295,34 @@ router.get("/courses", async (_req, res) => {
   res.json(courses.map((c) => ({ id: c.id, slug: c.slug, title: c.title, status: c.status, state: c.state, certTemplateId: c.certTemplateId, startsAt: c.startsAt, postponedTo: c.postponedTo, enrollments: c._count.enrollments })));
 });
 
+router.post("/courses", async (req: AuthRequest, res) => {
+  const p = z.object({
+    title: z.string().trim().min(4).max(140), summary: z.string().trim().min(10).max(600), outlineMd: z.string().trim().min(10).max(8000),
+    icon: z.string().max(8).optional(), partner: z.string().max(80).optional(), hours: z.number().min(0.5).max(200),
+    format: z.enum(["DIRECT", "REPLAY"]), startsAt: z.string().datetime().optional(), location: z.string().max(140).optional(), seats: z.number().int().min(1).max(5000).optional(),
+    trainerId: z.string().optional(), trainerName: z.string().max(80).optional(), trainerTitle: z.string().max(80).optional(),
+  }).safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: p.error.issues[0]?.message || "Informations incomplètes." });
+  const d = p.data;
+  let trainerName = d.trainerName, trainerTitle = d.trainerTitle;
+  if (d.trainerId) {
+    const t = await prisma.user.findUnique({ where: { id: d.trainerId } });
+    if (!t || t.role === "UTILISATRICE") return res.status(400).json({ error: "Formatrice introuvable." });
+    trainerName = t.fullName || t.pseudonyme; trainerTitle = t.profession || trainerTitle;
+  }
+  if (!trainerName) return res.status(400).json({ error: "Choisis la formatrice ou écris son nom." });
+  let slug = slugify(d.title), n = 1;
+  while (await prisma.course.findUnique({ where: { slug } })) slug = slugify(d.title) + "-" + ++n;
+  const c = await prisma.course.create({ data: {
+    slug, title: d.title, summary: d.summary, outlineMd: d.outlineMd, icon: d.icon || "🎓", partner: d.partner, durationMin: Math.round(d.hours * 60),
+    format: d.format, startsAt: d.startsAt ? new Date(d.startsAt) : null, location: d.location, seats: d.seats,
+    trainerId: d.trainerId, trainerName, trainerTitle, status: "PUBLIE", authorId: d.trainerId ?? null,
+    sourcesJson: JSON.stringify([{ title: "Programme défini par l'équipe Wali" + (d.partner ? " avec " + d.partner : ""), url: "" }]),
+  } });
+  await audit(req.userId, "CREATE_COURSE", c.title);
+  res.status(201).json({ id: c.id, slug: c.slug });
+});
+
 router.patch("/courses/:id/schedule", async (req: AuthRequest, res) => {
   const p = z.object({ startsAt: z.string().datetime().optional(), postponedTo: z.string().datetime().optional(), state: z.enum(["OUVERT", "REPORTEE", "TERMINEE"]).optional(), internalReason: z.string().max(500).optional() }).safeParse(req.body);
   if (!p.success) return res.status(400).json({ error: "Données invalides." });

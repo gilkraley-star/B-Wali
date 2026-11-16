@@ -37,7 +37,7 @@ export default function CarnetScreen({ route, navigation }: any) {
         {entries.map((e) => (
           <TouchableOpacity key={e.id} style={s.card} onLongPress={() => delEntry(e)} activeOpacity={0.9}>
             <Text style={s.date}>📅 {e.date}</Text>
-            {t.fields.map((f) => e.values[f.key] ? <Text key={f.key} style={s.line}>{f.kind === "mood" ? <Text style={{ fontSize: 22 }}>{e.values[f.key]}</Text> : <><Text style={s.lab}>{f.label} : </Text>{e.values[f.key]}{f.key === "fcfa" ? " FCFA" : ""}</>}</Text> : null)}
+            {t.fields.map((f) => e.values[f.key] ? <Text key={f.key} style={s.line}>{f.kind === "mood" ? <Text style={{ fontSize: 22 }}>{e.values[f.key]}</Text> : carnet.type === "journal" && f.key === "text" ? <Text style={s.hand}>{e.values[f.key]}</Text> : <><Text style={s.lab}>{f.label} : </Text>{e.values[f.key]}{f.key === "fcfa" ? " FCFA" : ""}</>}</Text> : null)}
           </TouchableOpacity>))}
         {entries.length > 0 && <Text style={[s.small, { textAlign: "center" }]}>Reste appuyée sur une page pour la supprimer.</Text>}
         <TouchableOpacity onPress={delCarnet}><Text style={[s.small, { textAlign: "center", marginTop: 20, color: colors.danger }]}>Supprimer ce carnet</Text></TouchableOpacity>
@@ -58,7 +58,7 @@ export default function CarnetScreen({ route, navigation }: any) {
                 ) : f.kind === "choice" ? (
                   <View style={s.row}>{f.options!.map((o) => (<TouchableOpacity key={o} onPress={() => setVals({ ...vals, [f.key]: o })} style={[s.chip, vals[f.key] === o && s.chipOn]}><Text style={vals[f.key] === o ? s.chipOnT : s.chipT}>{o}</Text></TouchableOpacity>))}</View>
                 ) : (
-                  <TextInput style={[s.in, f.kind === "long" && { minHeight: 90, textAlignVertical: "top" }]} multiline={f.kind === "long"} value={vals[f.key] || ""} keyboardType={f.kind === "number" ? "decimal-pad" : "default"} onChangeText={(v) => setVals({ ...vals, [f.key]: v })} />
+                  <TextInput style={[s.in, f.kind === "long" && { minHeight: 90, textAlignVertical: "top" }, carnet.type === "journal" && f.key === "text" && s.handIn]} placeholder={carnet.type === "journal" && f.key === "text" ? "Cher journal…" : undefined} placeholderTextColor="#B9A7B2" multiline={f.kind === "long"} value={vals[f.key] || ""} keyboardType={f.kind === "number" ? "decimal-pad" : "default"} onChangeText={(v) => setVals({ ...vals, [f.key]: v })} />
                 )}
               </View>))}
             <TouchableOpacity style={s.save} onPress={save}><Text style={s.fabT}>Enregistrer</Text></TouchableOpacity>
@@ -70,6 +70,8 @@ export default function CarnetScreen({ route, navigation }: any) {
   );
 }
 const s = StyleSheet.create({
+  hand: { fontFamily: "Caveat_500Medium", fontSize: 24, lineHeight: 32, color: "#3B1D33", marginTop: 6, backgroundColor: "#FFFBF2", padding: 12, borderRadius: 12 },
+  handIn: { fontFamily: "Caveat_500Medium", fontSize: 24, lineHeight: 32, minHeight: 280, backgroundColor: "#FFFBF2", borderColor: "#F0DDB8" },
   c: { flex: 1, backgroundColor: colors.background }, small: { fontSize: 12, color: "#6E5C68", lineHeight: 17 }, note: { fontSize: 12, color: "#7A5410", backgroundColor: "#FDF1DC", padding: 10, borderRadius: 10, marginTop: 8 },
   card: { backgroundColor: "#fff", borderRadius: 18, padding: 14, marginTop: 10 }, date: { fontWeight: "800", color: colors.prune, marginBottom: 4 }, line: { color: colors.text, lineHeight: 20, marginTop: 2 }, lab: { fontWeight: "700", color: colors.prune },
   fab: { position: "absolute", bottom: 16, alignSelf: "center", backgroundColor: colors.rose, borderRadius: 999, paddingHorizontal: 28, paddingVertical: 14, elevation: 4 }, fabT: { color: "#fff", fontWeight: "800", fontSize: 15 },

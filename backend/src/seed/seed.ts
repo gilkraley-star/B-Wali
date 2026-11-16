@@ -144,26 +144,36 @@ async function main() {
 
   console.log("Seed : catégories du forum…");
 
-  const forumCategoriesData: { slug: string; titleFr: string; restrictedTo?: "ADOLESCENTE" }[] = [
-    { slug: "mes-premieres-regles", titleFr: "Mes premières règles", restrictedTo: "ADOLESCENTE" },
-    { slug: "mon-corps-ma-sante", titleFr: "Mon corps et ma santé" },
-    { slug: "sante-intime", titleFr: "Santé intime" },
-    { slug: "puberte-adolescence", titleFr: "Puberté et adolescence", restrictedTo: "ADOLESCENTE" },
-    { slug: "relations-consentement", titleFr: "Relations et consentement" },
-    { slug: "etudes-vie-scolaire", titleFr: "Études et vie scolaire" },
-    { slug: "confiance-en-soi", titleFr: "Confiance en soi" },
-    { slug: "maternite", titleFr: "Maternité" },
-    { slug: "temoignages", titleFr: "Témoignages" },
-    { slug: "mon-avenir", titleFr: "Mon avenir" },
-    { slug: "questions-aux-professionnels", titleFr: "Questions aux professionnels" },
+  // Thèmes généraux (avec icône) et leurs sous-thèmes. Les anciens slugs sont conservés pour ne perdre aucun message.
+  type Sub = { slug: string; titleFr: string; restrictedTo?: "ADOLESCENTE" };
+  const tree: { slug: string; titleFr: string; icon: string; subs: Sub[] }[] = [
+    { slug: "t-corps", titleFr: "Mon corps et mon cycle", icon: "🌸", subs: [
+      { slug: "mes-premieres-regles", titleFr: "Mes premières règles", restrictedTo: "ADOLESCENTE" }, { slug: "puberte-adolescence", titleFr: "Puberté et adolescence", restrictedTo: "ADOLESCENTE" },
+      { slug: "mon-corps-ma-sante", titleFr: "Mon corps et ma santé" }, { slug: "regles-douloureuses", titleFr: "Règles douloureuses ou irrégulières" }, { slug: "hygiene-intime", titleFr: "Hygiène et protections" } ] },
+    { slug: "t-sexualite", titleFr: "Sexualité et relations", icon: "💞", subs: [
+      { slug: "sante-intime", titleFr: "Santé intime" }, { slug: "relations-consentement", titleFr: "Relations et consentement" }, { slug: "contraception", titleFr: "Contraception" },
+      { slug: "ist-vih", titleFr: "IST et VIH : se protéger" }, { slug: "premiere-fois", titleFr: "La première fois" }, { slug: "violences", titleFr: "Violences et harcèlement" } ] },
+    { slug: "t-maladie", titleFr: "Maladie et santé", icon: "🩺", subs: [
+      { slug: "paludisme-infections", titleFr: "Paludisme et infections" }, { slug: "anemie-nutrition", titleFr: "Anémie et alimentation" }, { slug: "maladies-chroniques", titleFr: "Drépanocytose, diabète et autres maladies" },
+      { slug: "vih-vivre-avec", titleFr: "Vivre avec le VIH" }, { slug: "handicap", titleFr: "Handicap" }, { slug: "questions-aux-professionnels", titleFr: "Questions aux professionnels" } ] },
+    { slug: "t-ecole", titleFr: "École et Université", icon: "🎓", subs: [
+      { slug: "etudes-vie-scolaire", titleFr: "Études et vie scolaire" }, { slug: "examens-stress", titleFr: "Examens et stress" }, { slug: "orientation", titleFr: "Orientation et bourses" },
+      { slug: "universite", titleFr: "Vie à l'université" }, { slug: "grossesse-ecole", titleFr: "Rester à l'école avec un bébé" } ] },
+    { slug: "t-maternite", titleFr: "Grossesse et jeunes mamans", icon: "🤱", subs: [
+      { slug: "maternite", titleFr: "Maternité" }, { slug: "grossesse-suivi", titleFr: "Suivi de grossesse" }, { slug: "allaitement", titleFr: "Allaitement" }, { slug: "bebe-soins", titleFr: "Soins du bébé" }, { slug: "apres-accouchement", titleFr: "Après l'accouchement" } ] },
+    { slug: "t-mental", titleFr: "Moral et confiance en soi", icon: "🌈", subs: [
+      { slug: "confiance-en-soi", titleFr: "Confiance en soi" }, { slug: "stress-tristesse", titleFr: "Stress, tristesse, anxiété" }, { slug: "famille-amis", titleFr: "Famille et amitiés" }, { slug: "solitude", titleFr: "Me sentir seule" } ] },
+    { slug: "t-avenir", titleFr: "Avenir et argent", icon: "💼", subs: [
+      { slug: "mon-avenir", titleFr: "Mon avenir" }, { slug: "petit-commerce", titleFr: "Petit commerce et revenus" }, { slug: "metiers", titleFr: "Métiers et formations" } ] },
+    { slug: "t-temoignages", titleFr: "Témoignages", icon: "✨", subs: [ { slug: "temoignages", titleFr: "Témoignages" }, { slug: "reussites", titleFr: "Mes réussites" } ] },
   ];
-
-  for (const c of forumCategoriesData) {
-    await prisma.forumCategory.upsert({
-      where: { slug: c.slug },
-      create: c,
-      update: c,
-    });
+  for (let ti = 0; ti < tree.length; ti++) {
+    const th = tree[ti];
+    const parent = await prisma.forumCategory.upsert({ where: { slug: th.slug }, create: { slug: th.slug, titleFr: th.titleFr, icon: th.icon, sort: ti }, update: { titleFr: th.titleFr, icon: th.icon, sort: ti, parentId: null } });
+    for (let si = 0; si < th.subs.length; si++) {
+      const c = th.subs[si];
+      await prisma.forumCategory.upsert({ where: { slug: c.slug }, create: { ...c, parentId: parent.id, sort: si }, update: { titleFr: c.titleFr, parentId: parent.id, sort: si, restrictedTo: c.restrictedTo ?? null } });
+    }
   }
 
   console.log("Seed terminé.");

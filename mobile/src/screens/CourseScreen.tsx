@@ -36,7 +36,10 @@ export default function CourseScreen({ route, navigation }: any) {
         {c.partner ? <Text style={s.meta}>En partenariat avec {c.partner}</Text> : null}
         <Text style={s.body}>{c.summary}</Text>
         {c.outlineMd ? <Card><Text style={s.h}>Au programme</Text><Text style={s.body}>{String(c.outlineMd).replace(/[#*]/g, "").trim()}</Text></Card> : null}
-        <Text style={s.meta}>⏱ {c.durationMin} min · 🎓 Attestation après le test</Text>
+        <Text style={s.meta}>⏱ {c.durationMin >= 60 ? (c.durationMin / 60).toString().replace(".", ",") + " h" : c.durationMin + " min"} · 🎓 Attestation après le test</Text>
+        {c.startsAt ? <Text style={s.meta}>📅 {new Date(c.startsAt).toLocaleString("fr-FR", { dateStyle: "full", timeStyle: "short" })}</Text> : null}
+        {c.location ? <Text style={s.meta}>📍 {c.location}</Text> : null}
+        {!c.author && c.trainerName ? <Card><Text style={s.h}>Ta formatrice</Text><Text style={s.body}>{c.trainerName}{c.trainerTitle ? " · " + c.trainerTitle : ""}</Text></Card> : null}
         {c.author ? (
           <Card>
             <Text style={s.h}>Ta formatrice</Text>

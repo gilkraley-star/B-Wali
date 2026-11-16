@@ -6,6 +6,9 @@ import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
 import { apiOrigin, apiRequest, setToken } from "../api/client";
 import { remindersEnabled, setReminders } from "../notifications";
+import { Lock, checkLock, clearLock, getLock, setLock } from "../lock";
+import { PatternPad, PinPad } from "../components/LockScreen";
+import { Modal } from "react-native";
 import SosChip from "../components/SosChip";
 import { FadeUp } from "../components/anim";
 
@@ -30,6 +33,17 @@ export default function SettingsScreen({ navigation }: any) {
   const [anon, setAnon] = useState(u?.anonymousDefault ?? false);
   const [remind, setRemind] = useState(false);
   const [sounds, setSounds] = useState(true);
+  const [lock, setLockState] = useState<Lock>(null);
+  const [flow, setFlow] = useState<null | { step: "verify" | "type" | "new" | "again"; type?: "pin" | "pattern"; first?: string; err?: string }>(null);
+  useEffect(() => { getLock().then(setLockState); }, []);
+  const startLock = () => setFlow({ step: lock ? "verify" : "type" });
+  const onSecret = async (c: string) => {
+    if (!flow) return;
+    if (flow.step === "verify") { if (lock && (await checkLock(lock, c))) setFlow({ step: "type" }); else setFlow({ ...flow, err: "Code ou schéma incorrect." }); return; }
+    if (flow.step === "new") { if (flow.type === "pattern" && c.length < 4) return setFlow({ ...flow, err: "Relie au moins 4 points." }); setFlow({ ...flow, step: "again", first: c, err: "" }); return; }
+    if (flow.step === "again") { if (c !== flow.first) return setFlow({ step: "new", type: flow.type, err: "Ce n'est pas pareil. Recommence." }); await setLock(flow.type!, c); setLockState(await getLock()); setFlow(null); }
+  };
+  const removeLock = async () => { await clearLock(); setLockState(null); setFlow(null); };
   const [server, setServer] = useState<"…" | "ok" | "ko">("…");
   useEffect(() => { soundsEnabled().then(setSounds); remindersEnabled().then(setRemind); refreshUser().catch(() => {}); }, []);
   useEffect(() => { fetch(apiOrigin + "/api/health").then((r) => setServer(r.ok ? "ok" : "ko")).catch(() => setServer("ko")); }, []);
@@ -62,7 +76,7 @@ export default function SettingsScreen({ navigation }: any) {
               <View style={s.av}><Text style={s.avT}>{initials}</Text></View>
               <View style={{ flex: 1 }}>
                 <Text style={s.name} numberOfLines={1}>{u?.pseudonyme}</Text>
-                {born ? <Text style={s.sub}>Née le {born.getUTCDate()} {MONTHS[born.getUTCMonth()]} {born.getUTCFullYear()} · {ageOf(u.birthDate)} ans</Text> : <Text style={s.sub}>{u?.ageBracket === "ADOLESCENTE" ? "Adolescente" : u?.ageBracket === "JEUNE_FEMME" ? "Jeune femme" : "Femme"}</Text>}
+                {born ? <Text style={s.sub}>Née le {born.getUTCDate()} {MONTHS[born.getUTCMonth()]} {born.getUTCFullYear()} · {ageOf(u.birthDate)} ans</Text> : null}
               </View>
             </View>
             <Text style={s.note}>Ta date de naissance ne se change pas toute seule. Si elle est fausse, écris à l'équipe : elle la corrige après vérification.</Text>
@@ -87,8 +101,29 @@ export default function SettingsScreen({ navigation }: any) {
         <Toggle label="Participer à la communauté" hint="Si tu éteins, tu peux lire sans que ton pseudo apparaisse." value={forum} onChange={(v) => { setForum(v); privacy({ participatesForum: v }); }} />
         <Toggle label="Écrire en anonyme par défaut" hint="Dans les forums seulement : le direct reste à visage découvert." value={anon} onChange={(v) => { setAnon(v); privacy({ anonymousDefault: v }); }} />
         <Toggle label="Rappels de règles sur mon téléphone" hint="Notification discrète, sans le mot « règles »." value={remind} onChange={toggleRemind} />
+        <Text style={s.sec}>VERROUILLAGE DE L'APPLI</Text>
+        <TouchableOpacity style={s.tog} onPress={startLock} activeOpacity={0.85}>
+          <View style={{ flex: 1 }}><Text style={s.togT}>{lock ? (lock.type === "pin" ? "🔒 Code à 4 chiffres actif" : "🔒 Schéma actif") : "🔓 Aucun verrou"}</Text><Text style={s.togH}>{lock ? "Touche pour changer ou retirer." : "Choisis un code ou un schéma pour protéger Wali."}</Text></View><Text style={{ color: "#FF5470", fontSize: 20 }}>›</Text>
+        </TouchableOpacity>
         <Toggle label="🔊 Sons des jeux" value={sounds} onChange={(v) => { setSounds(v); setSoundsEnabled(v); }} />
 
+        <Modal visible={!!flow} animationType="slide" transparent onRequestClose={() => setFlow(null)}>
+          <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" }}>
+            <View style={{ backgroundColor: "#FFF6F0", borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 22, alignItems: "center" }}>
+              {flow?.step === "type" ? (<>
+                <Text style={s.mh}>Comment veux-tu verrouiller Wali ?</Text>
+                <TouchableOpacity style={s.opt} onPress={() => setFlow({ step: "new", type: "pin" })}><Text style={s.optT}>🔢 Un code à 4 chiffres</Text></TouchableOpacity>
+                <TouchableOpacity style={s.opt} onPress={() => setFlow({ step: "new", type: "pattern" })}><Text style={s.optT}>✳️ Un schéma (relier des points)</Text></TouchableOpacity>
+                {lock ? <TouchableOpacity style={[s.opt, { backgroundColor: "#FDE3E3" }]} onPress={removeLock}><Text style={[s.optT, { color: "#C23B3B" }]}>Retirer le verrou</Text></TouchableOpacity> : null}
+              </>) : (<>
+                <Text style={s.mh}>{flow?.step === "verify" ? "D'abord, ton code actuel" : flow?.step === "again" ? "Refais-le pour confirmer" : flow?.type === "pin" ? "Choisis ton code" : "Dessine ton nouveau schéma"}</Text>
+                <Text style={{ color: "#C23B3B", marginBottom: 10, minHeight: 18, fontSize: 13 }}>{flow?.err || " "}</Text>
+                {(flow?.step === "verify" ? lock?.type : flow?.type) === "pin" ? <PinPad key={flow?.step + (flow?.err || "")} onDone={onSecret} /> : <PatternPad onDone={onSecret} />}
+              </>)}
+              <TouchableOpacity onPress={() => setFlow(null)} style={{ padding: 14 }}><Text style={{ color: "#8C7A86" }}>Annuler</Text></TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
         <TouchableOpacity style={s.ghost} onPress={logout} activeOpacity={0.85}><Text style={s.ghostT}>{t("logout")}</Text></TouchableOpacity>
         <TouchableOpacity activeOpacity={0.9} onPress={deleteAccount}>
           <LinearGradient colors={["#C23B3B", "#A82E2E"]} style={s.del}><Text style={s.delT}>{t("settings_delete_account")}</Text></LinearGradient>
@@ -113,5 +148,6 @@ const s = StyleSheet.create({
   tog: { backgroundColor: "#fff", borderRadius: 22, padding: 16, marginBottom: 10, flexDirection: "row", alignItems: "center", gap: 12 }, togT: { fontFamily: "Inter_600SemiBold", color: "#3B1D33", fontSize: 15 }, togH: { color: "#8C7A86", fontSize: 12.5, lineHeight: 18, marginTop: 3 },
   ghost: { borderWidth: 1.5, borderColor: "#FF8FA3", borderRadius: 999, paddingVertical: 15, alignItems: "center", marginTop: 14, backgroundColor: "#fff" }, ghostT: { color: "#C23B3B", fontFamily: "Inter_700Bold", fontSize: 15 },
   del: { borderRadius: 999, paddingVertical: 16, alignItems: "center", marginTop: 10 }, delT: { color: "#fff", fontFamily: "Inter_700Bold", fontSize: 15 },
+  mh: { fontFamily: "Poppins_700Bold", fontSize: 17, color: "#3B1D33", marginBottom: 14, textAlign: "center" }, opt: { backgroundColor: "#fff", borderRadius: 999, paddingVertical: 15, paddingHorizontal: 22, alignSelf: "stretch", marginBottom: 10, alignItems: "center" }, optT: { fontFamily: "Inter_700Bold", color: "#3B1D33", fontSize: 15 },
   warn: { color: "#8C7A86", fontSize: 12, textAlign: "center", lineHeight: 17, marginTop: 10 }, srv: { textAlign: "center", color: "#8C7A86", fontSize: 11.5, marginTop: 16 },
 });

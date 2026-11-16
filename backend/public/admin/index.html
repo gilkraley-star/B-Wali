@@ -164,7 +164,21 @@
   }
 
   function coursesView(){
-    return '<p><small>Ici tu publies chaque formation, tu programmes sa date et tu peux reporter une session. Le motif reste interne : les filles voient seulement « reportée — formatrice indisponible » avec la nouvelle date.</small></p>' +
+    var pros = state.users.filter(function(u){ return u.role !== "UTILISATRICE" && u.role !== "ADMIN" && u.active; });
+    var form = '<div class="card"><b>➕ Programmer une nouvelle formation</b>' +
+      '<label>Titre</label><input id="c_title" placeholder="Gérer sa santé menstruelle">' +
+      '<label>Description courte</label><textarea id="c_sum" maxlength="600"></textarea>' +
+      '<label>Programme détaillé (une ligne par thème)</label><textarea id="c_outline" rows="5"></textarea>' +
+      '<div class="row"><div class="grow"><label>Nombre d’heures</label><input id="c_hours" type="number" step="0.5" min="0.5" value="2"></div>' +
+      '<div class="grow"><label>Nombre de places (facultatif)</label><input id="c_seats" type="number" min="1"></div></div>' +
+      '<label>Type</label><select id="c_fmt"><option value="DIRECT">Direct (live dans l’appli)</option><option value="REPLAY">Replay / à son rythme</option></select>' +
+      '<label>Date et heure de début</label><input id="c_date" type="datetime-local">' +
+      '<label>Lieu ou lien (facultatif)</label><input id="c_loc" placeholder="Salle FAFECA, Bangui · ou « En direct dans l’appli »">' +
+      '<label>Partenaire (facultatif)</label><input id="c_partner" placeholder="FAFECA">' +
+      '<label>Formatrice / formateur</label><select id="c_trainer"><option value="">— Choisir un compte existant —</option>' + pros.map(function(u){ return '<option value="'+u.id+'">'+esc(u.fullName||u.email)+(u.profession?' · '+esc(u.profession):'')+'</option>'; }).join("") + '<option value="__new">➕ Autre personne (je saisis son nom)</option></select>' +
+      '<div id="c_newtr" style="display:none"><label>Nom complet</label><input id="c_trname"><label>Titre / profession</label><input id="c_trtitle" placeholder="Sage-femme, Coach…"><small>Pour qu’elle ait un espace pro (live, messages), crée aussi son compte dans « Comptes pro ».</small></div>' +
+      '<p><button class="p" id="c_go">Publier la formation</button></p></div>';
+    return form + '<p><small>Ici tu publies chaque formation, tu programmes sa date et tu peux reporter une session. Le motif reste interne : les filles voient seulement « reportée — formatrice indisponible » avec la nouvelle date.</small></p>' +
       (state.courses.map(function(c){
         return '<div class="card"><div class="row"><div class="grow"><b>'+esc(c.title)+'</b><br><small>'+c.enrollments+' inscrite(s) · '+esc(c.status)+' · '+esc(c.state)+(c.startsAt?' · '+new Date(c.startsAt).toLocaleString("fr-FR"):'')+(c.postponedTo?' → reportée au '+new Date(c.postponedTo).toLocaleString("fr-FR"):'')+'</small></div></div>' +
           (c.status !== "PUBLIE" ? '<div class="row" style="margin-top:8px"><span class="msg err grow">⚠️ Pas encore publiée : les filles ne la voient pas dans l’appli.</span><button class="ok" data-pubc="'+c.id+'">Publier maintenant</button></div>' : '<div style="margin-top:6px"><small>✅ Publiée : visible dans l’appli.</small></div>') + '<div class="row" style="margin-top:8px"><input type="datetime-local" data-dt="'+c.id+'" style="max-width:230px"><button class="s" data-sched="'+c.id+'">Programmer la date</button><button class="bad" data-post="'+c.id+'">Reporter à cette date</button></div></div>';
@@ -324,6 +338,19 @@
     $$("[data-annact]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/announcements/"+b.dataset.annact, {method:"PATCH", body:{active:b.dataset.v==="true"}}); await load(); }); });
     $$("[data-anndel]").forEach(function(b){ b.onclick = act(async function(){ if(!confirm("Supprimer cette annonce ?")) return; await api("/admin/announcements/"+b.dataset.anndel, {method:"DELETE"}); await load(); }); });
     function dt(id){ var el = app.querySelector('[data-dt="'+id+'"]'); if (!el || !el.value) throw new Error("Choisis d'abord une date et une heure."); return new Date(el.value).toISOString(); }
+    var cg = document.getElementById("c_go");
+    if (cg) {
+      document.getElementById("c_trainer").onchange = function(){ document.getElementById("c_newtr").style.display = this.value === "__new" ? "block" : "none"; };
+      cg.onclick = act(async function(){
+        var tr = document.getElementById("c_trainer").value, d = document.getElementById("c_date").value;
+        var body = { title: v("c_title"), summary: v("c_sum"), outlineMd: v("c_outline"), hours: +v("c_hours"), format: v("c_fmt"), location: v("c_loc") || undefined, partner: v("c_partner") || undefined };
+        if (v("c_seats")) body.seats = +v("c_seats");
+        if (d) body.startsAt = new Date(d).toISOString();
+        if (tr && tr !== "__new") body.trainerId = tr; else { body.trainerName = v("c_trname"); body.trainerTitle = v("c_trtitle") || undefined; }
+        await api("/admin/courses", { method: "POST", body: body });
+        await load(); flash("Formation publiée : elle apparaît maintenant dans l’appli.");
+      });
+    }
     $$("[data-pubc]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/review/courses/"+b.dataset.pubc, {method:"POST", body:{decision:"approve"}}); flash("Formation publiée : elle apparaît dans l’appli."); await load(); }); });
     $$("[data-sched]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/courses/"+b.dataset.sched+"/schedule", {method:"PATCH", body:{startsAt: dt(b.dataset.sched), state:"OUVERT"}}); flash("Date programmée."); await load(); }); });
     $$("[data-post]").forEach(function(b){ b.onclick = act(async function(){ var why = prompt("Motif interne (non visible des filles) :") || ""; await api("/admin/courses/"+b.dataset.post+"/schedule", {method:"PATCH", body:{postponedTo: dt(b.dataset.post), state:"REPORTEE", internalReason: why}}); flash("Session reportée. Les filles verront : formatrice indisponible + nouvelle date."); await load(); }); });

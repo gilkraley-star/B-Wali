@@ -149,6 +149,9 @@ model ForumCategory {
   slug    String @unique
   titleFr String
   titleSg String?
+  icon     String? // emoji du thème
+  parentId String? // sous-thème d'un thème général
+  sort     Int     @default(0)
   // Catégorie réservée à une tranche d'âge (ex: espace ados séparé) — null = ouverte à toutes
   restrictedTo String?
   posts   ForumPost[]
@@ -226,6 +229,11 @@ model Course {
   icon        String   @default("🎓")
   partner     String?  // entité partenaire (ex. FAFECA) — mention sur l'attestation
   durationMin Int      @default(60)
+  trainerId   String?  // formatrice/formateur ayant un compte pro
+  trainerName String?  // ou nom saisi à la main
+  trainerTitle String?
+  location    String?
+  seats       Int?
   format      String   @default("DIRECT") // DIRECT | REPLAY
   startsAt    DateTime?
   postponedTo DateTime?
