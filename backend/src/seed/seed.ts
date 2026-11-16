@@ -8,6 +8,10 @@ import { STORIES } from "./stories";
 // (cf. section 5.3 : "Les contenus sanitaires seront préparés ou vérifiés avec des professionnels qualifiés").
 
 async function main() {
+  // Première annonce de l'accueil (une seule fois ; ensuite elles se gèrent dans l'administration)
+  if ((await prisma.announcement.count()) === 0) {
+    await prisma.announcement.create({ data: { emoji: "💗", title: "Bienvenue sur Bê Wali !", body: "Ici, tu peux poser tes questions, apprendre, jouer et te faire des amies en toute discrétion.", color: "violet", target: "Assistant" } });
+  }
   console.log("Seed : catégories d'articles…");
 
   const categoriesData = [
