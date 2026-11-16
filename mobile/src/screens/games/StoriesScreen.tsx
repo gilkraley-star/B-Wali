@@ -1,10 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { apiRequest } from "../../api/client";
+import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect } from "@react-navigation/native";
 import { colors, spacing } from "../../theme/colors";
 
 interface Story { slug: string; title: string; summary: string; category: string; icon: string; readMin: number; credit: string; license?: string | null }
 interface Detail extends Story { chapters: { position: number; title: string; body: string }[]; sourceUrl?: string | null }
+const GRAD: Record<string, [string, string]> = { HEROINE: ["#FF8A5B", "#FF5470"], CONTE: ["#FFC857", "#FF8A5B"], EDUCATION: ["#6FA8FF", "#8E5CFF"], ICI: ["#4CC9A0", "#27AE60"], AMOUR: ["#FF7AA8", "#C23B8F"] };
+const TAG: Record<string, string> = { HEROINE: "HÉROÏNE", CONTE: "CONTE", EDUCATION: "ÉDUCATION", ICI: "D'ICI", AMOUR: "AMOUR 18+" };
 const CATS: [string, string][] = [["", "Toutes"], ["HEROINE", "Héroïnes"], ["CONTE", "Contes"], ["EDUCATION", "Éducation"], ["ICI", "D'ici"], ["AMOUR", "Amour 18+"]];
 
 export default function StoriesScreen({ navigation }: any) {
@@ -14,10 +18,10 @@ export default function StoriesScreen({ navigation }: any) {
   const [ch, setCh] = useState(0);
   const [offline, setOffline] = useState(false);
   useEffect(() => { navigation.setOptions({ title: "Histoires 📖" }); }, []);
-  useEffect(() => {
-    setList(null); setOffline(false);
-    apiRequest<Story[]>("/stories" + (cat ? "?category=" + cat : ""), { silent: true }).then(setList).catch(() => { setOffline(true); setList([]); });
-  }, [cat]);
+  useFocusEffect(useCallback(() => {
+    setOffline(false);
+    apiRequest<Story[]>("/stories" + (cat ? "?category=" + cat : ""), { silent: true }).then(setList).catch(() => { setOffline(true); setList((x) => x || []); });
+  }, [cat]));
   async function read(slug: string) { try { const d = await apiRequest<Detail>("/stories/" + slug); setOpen(d); setCh(0); } catch {} }
 
   if (open) {
@@ -42,11 +46,11 @@ export default function StoriesScreen({ navigation }: any) {
         {CATS.map(([k, l]) => (<TouchableOpacity key={k} onPress={() => setCat(k)} style={[s.chip, cat === k && { backgroundColor: "#8E5CFF" }]}><Text style={[s.chipT, cat === k && { color: "#fff" }]}>{l}</Text></TouchableOpacity>))}
       </ScrollView>
       {offline && <Text style={s.mut}>📴 Connecte-toi à internet pour lire les histoires.</Text>}
-      {list && !offline && list.length === 0 && <Text style={s.mut}>Pas encore d'histoire ici. Les histoires sont publiées après relecture.</Text>}
+      {list && !offline && list.length === 0 && <Text style={s.mut}>Pas encore d'histoire ici. Les histoires arrivent bientôt : elles sont publiées après relecture par l'équipe. Reviens vite ! 📖</Text>}
       {list?.map((b) => (
         <TouchableOpacity key={b.slug} style={s.card} onPress={() => read(b.slug)}>
-          <View style={s.cover}><Text style={{ fontSize: 34 }}>{b.icon}</Text></View>
-          <View style={{ flex: 1 }}><Text style={s.t}>{b.title}</Text><Text style={s.mut} numberOfLines={2}>{b.summary}</Text><Text style={s.meta}>{b.readMin} min · {b.credit.split(" · ")[0]}</Text></View>
+          <LinearGradient colors={GRAD[b.category] || ["#FF8A5B", "#FF5470"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.cover}><Text style={{ fontSize: 38 }}>{b.icon}</Text></LinearGradient>
+          <View style={{ flex: 1 }}><View style={s.tag}><Text style={s.tagT}>{TAG[b.category] || b.category}</Text></View><Text style={s.t}>{b.title}</Text><Text style={s.mut} numberOfLines={2}>{b.summary}</Text><Text style={s.meta}>{b.readMin} min · {b.credit.split(" · ")[0]}</Text></View>
         </TouchableOpacity>))}
     </ScrollView>
   );
@@ -55,8 +59,9 @@ const s = StyleSheet.create({
   c: { flex: 1, backgroundColor: colors.background },
   chip: { backgroundColor: "#fff", borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, marginRight: 8 }, chipT: { fontWeight: "800", color: colors.text, fontSize: 13 },
   card: { flexDirection: "row", gap: 14, backgroundColor: "#fff", borderRadius: 24, padding: 12, marginBottom: 12 },
-  cover: { width: 70, height: 96, borderRadius: 14, backgroundColor: "#F3E4FF", alignItems: "center", justifyContent: "center" },
-  t: { fontWeight: "800", color: colors.text, fontSize: 15 }, mut: { color: colors.textMuted, fontSize: 12.5, lineHeight: 18, marginTop: 2 }, meta: { color: colors.textMuted, fontSize: 11, marginTop: 4, fontWeight: "600" },
+  cover: { width: 78, height: 104, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  tag: { alignSelf: "flex-start", backgroundColor: "#FFD84D", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginBottom: 4 }, tagT: { fontFamily: "Inter_700Bold", fontSize: 10.5, color: "#3B1D33" },
+  t: { fontFamily: "Poppins_700Bold", color: colors.text, fontSize: 15 }, mut: { color: colors.textMuted, fontSize: 12.5, lineHeight: 18, marginTop: 2 }, meta: { color: colors.textMuted, fontSize: 11, marginTop: 4, fontWeight: "600" },
   back: { color: colors.rose, fontWeight: "800", marginBottom: 12 }, title: { fontSize: 22, fontWeight: "800", color: colors.text }, credit: { color: colors.textMuted, fontSize: 11.5, marginTop: 4, marginBottom: 10 },
   body: { fontSize: 16.5, lineHeight: 26, color: colors.text, marginTop: 8 },
   cta: { flex: 1, backgroundColor: colors.rose, borderRadius: 999, padding: 14, alignItems: "center" }, ctaT: { color: "#fff", fontWeight: "800" },

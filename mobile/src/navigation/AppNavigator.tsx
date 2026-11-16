@@ -143,7 +143,7 @@ export default function AppNavigator() {
             <RootStack.Screen name="Live" component={LiveScreen} options={{ headerShown: false }} />
             <RootStack.Screen name="Formations" component={FormationsScreen} options={{ headerShown: true, title: "Formations" }} />
             <RootStack.Screen name="Partager" component={ShareScreen} options={{ headerShown: true, title: "Inviter une amie" }} />
-            <RootStack.Screen name="Revenus" component={RevenusScreen} options={{ headerShown: true, title: "Gagner un revenu" }} />
+            <RootStack.Screen name="Revenus" component={RevenusScreen} options={{ headerShown: false }} />
             <RootStack.Screen name="Professionnelles" component={ProfessionnellesScreen} options={{ headerShown: true, title: "Professionnelles" }} />
             <RootStack.Screen name="Urgence" component={UrgenceScreen} options={{ headerShown: true, title: "Urgence" }} />
             <RootStack.Screen name="ProSpace" component={ProSpaceScreen} options={{ headerShown: true, title: "Espace pro" }} />

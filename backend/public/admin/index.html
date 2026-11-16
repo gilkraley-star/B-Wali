@@ -122,7 +122,7 @@
   function queueView(){
     var filters = [["A_VALIDER","À valider"],["PUBLIE","Publiés"],["REJETE","Refusés"]];
     var h = '<div class="row" style="margin-bottom:10px">' + filters.map(function(f){ return '<button class="'+(state.filter===f[0]?'p':'s')+'" data-f="'+f[0]+'">'+f[1]+'</button>'; }).join("") + '<span class="grow"></span>' +
-      (state.filter==="A_VALIDER" ? '<button class="ok" id="bulk">Approuver la sélection</button>' : '') + '</div>';
+      (state.filter==="A_VALIDER" ? '<button class="s" id="selall">Tout sélectionner</button> <button class="ok" id="bulk">Approuver la sélection</button>' : '') + '</div>';
     if (!state.queue.length) return h + '<div class="card">Rien dans cette liste.</div>';
     return h + state.queue.map(function(it){
       var key = it.type + ":" + it.id;
@@ -259,6 +259,8 @@
     $$("[data-un]").forEach(function(b){ b.onclick = act(async function(){ var k=b.dataset.un.split(":"); await api("/admin/review/"+k[0]+"/"+k[1], {method:"POST", body:{decision:"unpublish"}}); flash("Retiré de la publication."); await load(); }); });
     $$("[data-rj]").forEach(function(b){ b.onclick = act(async function(){ var note = prompt("Motif du refus (obligatoire) :"); if (!note) return; var k=b.dataset.rj.split(":"); await api("/admin/review/"+k[0]+"/"+k[1], {method:"POST", body:{decision:"reject", note:note}}); flash("Refusé avec motif."); await load(); }); });
     $$("[data-lift]").forEach(function(b){ b.onclick = act(async function(){ if (!confirm("Lever la suspension de cette personne ?")) return; await api("/admin/users/"+b.dataset.lift+"/lift-suspension", {method:"POST", body:{}}); flash("Suspension levée."); await load(); }); });
+    var selall = document.getElementById("selall");
+    if (selall) selall.onclick = function(){ state.queue.forEach(function(it){ state.selected[it.type + ":" + it.id] = true; }); render(); };
     var bulk = document.getElementById("bulk");
     if (bulk) bulk.onclick = act(async function(){
       var items = Object.keys(state.selected).filter(function(k){ return state.selected[k]; }).map(function(k){ var p=k.split(":"); return {type:p[0], id:p[1]}; });
