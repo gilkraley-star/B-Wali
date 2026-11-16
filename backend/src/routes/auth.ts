@@ -161,12 +161,15 @@ router.get("/me", requireAuth, async (req: AuthRequest, res) => {
     photoUrl: user.photoUrl,
     mustChangePassword: user.mustChangePassword,
     participatesForum: user.participatesForum,
+    anonymousDefault: user.anonymousDefault,
+    birthDate: user.birthDate ? user.birthDate.toISOString().slice(0, 10) : null,
   });
 });
 
 // PATCH /api/auth/privacy — gérer les paramètres de confidentialité (section 7)
 const privacySchema = z.object({
   participatesForum: z.boolean().optional(),
+  anonymousDefault: z.boolean().optional(),
   pseudonyme: z.string().min(2).max(30).optional(),
   dataRetentionAcknowledged: z.boolean().optional(),
 });
@@ -182,6 +185,7 @@ router.patch("/privacy", requireAuth, async (req: AuthRequest, res) => {
   res.json({
     pseudonyme: updated.pseudonyme,
     participatesForum: updated.participatesForum,
+    anonymousDefault: updated.anonymousDefault,
     dataRetentionAcknowledged: updated.dataRetentionAcknowledged,
   });
 });

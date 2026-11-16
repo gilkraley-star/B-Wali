@@ -44,6 +44,7 @@ model User {
   updatedAt     DateTime @updatedAt
 
   // Confidentialité (section 7 du dossier)
+  anonymousDefault Boolean @default(false) // écrire sans afficher son pseudo dans les forums
   participatesForum Boolean @default(true) // peut utiliser le calendrier seul, sans le forum
   dataRetentionAcknowledged Boolean @default(false)
 
@@ -162,6 +163,7 @@ model ForumPost {
   title      String
   body       String
   isModerated Boolean @default(true) // les messages sont visibles tout de suite ; modération après coup (signalements)
+  anonymous Boolean @default(false) // écrit sans montrer le pseudo
   isHidden   Boolean  @default(false) // masqué suite à signalement traité
   createdAt  DateTime @default(now())
 
@@ -180,6 +182,7 @@ model ForumComment {
   body      String
   mediaUrl  String?  // photo ou vidéo jointe (supprimée avec le message)
   mediaType String?  // "image" | "video"
+  anonymous Boolean @default(false)
   isHidden  Boolean  @default(false)
   createdAt DateTime @default(now())
 

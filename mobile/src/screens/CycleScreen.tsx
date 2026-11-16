@@ -7,6 +7,7 @@ import { colors } from "../theme/colors";
 import { PrimaryButton } from "../theme/ui";
 import { FadeUp } from "../components/anim";
 import SosChip from "../components/SosChip";
+import { scheduleCycleReminders } from "../notifications";
 
 // Mon Cycle (maquette) : 1) « Connais-tu ton cycle ? » 2) saisie rapide ou mode « apprentissage » 3) tableau de bord avec calendrier.
 const DAY = 86400000;
@@ -31,6 +32,7 @@ export default function CycleScreen({ navigation }: any) {
     setPeriods(local); setLen(l); setLenText(String(l)); setLoaded(true);
     const synced = await syncCycle();
     if (synced) setPeriods(synced);
+    scheduleCycleReminders();
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 

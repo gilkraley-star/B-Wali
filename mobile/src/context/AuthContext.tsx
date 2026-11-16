@@ -12,6 +12,8 @@ export interface User {
   ageBracket: "ADOLESCENTE" | "JEUNE_FEMME" | "FEMME_ADULTE";
   role: string;
   country?: string;
+  birthDate?: string | null;
+  anonymousDefault?: boolean;
   participatesForum?: boolean;
   fullName?: string | null;
   profession?: string | null;

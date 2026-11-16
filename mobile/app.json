@@ -51,7 +51,8 @@
           }
         }
       ],
-      "expo-screen-orientation"
+      "expo-screen-orientation",
+      "expo-notifications"
     ],
     "ios": {
       "infoPlist": {

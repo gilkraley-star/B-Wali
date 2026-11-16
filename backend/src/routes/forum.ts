@@ -28,6 +28,10 @@ const postSchema = z.object({
   body: z.string().min(1).max(5000),
 });
 
+function maskAuthor<T extends { anonymous?: boolean; author?: any }>(x: T): T {
+  return x.anonymous && x.author ? { ...x, author: { ...x.author, pseudonyme: "Anonyme" } } : x;
+}
+
 // POST /api/forum/posts — publication soumise à modération avant affichage public
 router.post("/posts", requireAuth, async (req: AuthRequest, res) => {
   const susp = await suspensionError(req.userId!);
@@ -48,7 +52,7 @@ router.post("/posts", requireAuth, async (req: AuthRequest, res) => {
   }
 
   const post = await prisma.forumPost.create({
-    data: { ...parsed.data, authorId: req.userId! },
+    data: { ...parsed.data, authorId: req.userId!, anonymous: user.anonymousDefault },
   });
   broadcast({ t: "post", cat: post.categoryId });
   res.status(201).json(post);
@@ -61,7 +65,7 @@ router.get("/categories/:categoryId/posts", requireAuth, async (req: AuthRequest
     include: { author: { select: { pseudonyme: true } }, _count: { select: { comments: true } } },
     orderBy: { createdAt: "desc" },
   });
-  res.json(posts);
+  res.json(posts.map(maskAuthor));
 });
 
 // GET /api/forum/posts/:id
@@ -86,10 +90,10 @@ router.get("/posts/:id", requireAuth, async (req: AuthRequest, res) => {
   const comments = post.comments.reverse().map((c: any) => {
     const counts: Record<string, number> = {};
     for (const r of c.reactions) counts[r.emoji] = (counts[r.emoji] || 0) + 1;
-    const { reactions, ...rest } = c;
+    const { reactions, ...rest } = maskAuthor(c);
     return { ...rest, reactionCounts: counts, myReaction: reactions.find((r: any) => r.userId === me)?.emoji ?? null };
   });
-  res.json({ ...post, comments, maxMessages: MAX_MESSAGES, retentionHours: RETENTION_HOURS });
+  res.json({ ...maskAuthor(post), comments, maxMessages: MAX_MESSAGES, retentionHours: RETENTION_HOURS });
 });
 
 const commentSchema = z
@@ -148,6 +152,7 @@ router.post("/posts/:id/comments", requireAuth, async (req: AuthRequest, res) =>
       body: parsed.data.body,
       mediaUrl: parsed.data.mediaUrl ?? null,
       mediaType: parsed.data.mediaType ?? null,
+      anonymous: user.anonymousDefault,
     },
   });
   broadcast({ t: "comment", post: post.id });
