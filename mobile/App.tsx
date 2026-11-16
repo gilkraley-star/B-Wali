@@ -1,7 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { registerGlobals } from "@livekit/react-native";
-
-registerGlobals();
 import { useFonts } from "expo-font";
 import { Poppins_600SemiBold, Poppins_700Bold, Poppins_800ExtraBold } from "@expo-google-fonts/poppins";
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
@@ -13,6 +10,7 @@ import { NetProvider } from "./src/context/NetContext";
 import AppNavigator from "./src/navigation/AppNavigator";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppIntro } from "./src/components/Intro";
+import ErrorBoundary from "./src/components/ErrorBoundary";
 
 export default function App() {
   const [fontsLoaded] = useFonts({ Poppins_600SemiBold, Poppins_700Bold, Poppins_800ExtraBold, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
@@ -23,6 +21,7 @@ export default function App() {
   })(); }, []);
   if (!fontsLoaded) return null;
   return (
+    <ErrorBoundary>
     <SafeAreaProvider>
       <I18nProvider>
         <AuthProvider>
@@ -34,5 +33,6 @@ export default function App() {
         </AuthProvider>
       </I18nProvider>
     </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

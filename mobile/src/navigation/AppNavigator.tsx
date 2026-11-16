@@ -30,7 +30,7 @@ import CarnetScreen from "../screens/CarnetScreen";
 import FloatingTabBar from "./FloatingTabBar";
 import JeunesMamansScreen from "../screens/JeunesMamansScreen";
 import CentresScreen from "../screens/CentresScreen";
-import LiveScreen from "../screens/LiveScreen";
+import LiveScreen from "../screens/LiveLazy";
 import FormationsScreen from "../screens/FormationsScreen";
 import RevenusScreen from "../screens/RevenusScreen";
 import ProfessionnellesScreen from "../screens/ProfessionnellesScreen";
