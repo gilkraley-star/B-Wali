@@ -88,15 +88,6 @@ export default function SettingsScreen() {
         </View>
       </Card>
 
-      <PrimaryButton
-        title={t("settings_export_data")}
-        variant="secondary"
-        onPress={async () => {
-          await apiRequest("/auth/export");
-          Alert.alert(t("settings_export_data"), "Export récupéré (à brancher sur un partage de fichier).");
-        }}
-      />
-
       <PrimaryButton title={t("logout")} variant="secondary" onPress={logout} />
       <PrimaryButton title={t("settings_delete_account")} variant="danger" onPress={handleDeleteAccount} />
     </ScrollView>

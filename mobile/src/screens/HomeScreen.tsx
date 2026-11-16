@@ -47,6 +47,7 @@ export default function HomeScreen({ navigation }: any) {
         <QuickAction label={t("tab_forum")} emoji="💬" onPress={() => navigation.navigate("Forum")} />
         <QuickAction label={t("tab_settings")} emoji="⚙️" onPress={() => navigation.navigate("Settings")} />
         <QuickAction label="Jeux et divertissement" emoji="🎮" onPress={() => navigation.navigate("Games")} />
+        <QuickAction label="Mon Carnet" emoji="📒" onPress={() => navigation.navigate("MonCarnet")} />
         <QuickAction label="Formations" emoji="🎓" onPress={() => navigation.navigate("Formations")} />
         <QuickAction label="Inviter une amie" emoji="💌" onPress={() => navigation.navigate("Partager")} />
         <QuickAction label="Gagner un revenu" emoji="💼" onPress={() => navigation.navigate("Revenus")} />
