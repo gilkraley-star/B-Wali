@@ -1,0 +1,39 @@
+name: Android APK
+
+# Lancer à la main : onglet Actions > "Android APK" > Run workflow.
+# Ou créer une étiquette de version (ex. v0.2.0) : git tag v0.2.0 && git push --tags
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    env:
+      # Adresse publique de l'API (à définir dans Settings > Secrets and variables > Actions > Variables)
+      API_BASE_URL: ${{ vars.API_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Dépendances
+        working-directory: mobile
+        run: npm ci
+      - name: Projet Android natif
+        working-directory: mobile
+        run: npx expo prebuild --platform android --no-install
+      - name: Compilation de l'APK
+        working-directory: mobile/android
+        run: ./gradlew assembleRelease --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bewali-android-apk
+          path: mobile/android/app/build/outputs/apk/release/*.apk

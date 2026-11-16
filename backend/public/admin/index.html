@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bê Wali — Administration</title>
+<style>
+  :root{--prune:#5B2C4A;--rose:#E85D75;--corail:#FF8C69;--bg:#FFF8F7;--muted:#6E5C68;--ok:#2E7D55;--bad:#C23B3B;--blue:#15609E;--line:#F3DEE1}
+  *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:#2E1A28}
+  header{background:var(--prune);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  header h1{font-size:18px;margin:0;flex:1} header button{background:transparent;color:#fff;border:1px solid #ffffff80;border-radius:999px;padding:6px 12px;cursor:pointer}
+  nav{display:flex;gap:6px;padding:10px 12px;overflow-x:auto;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:2}
+  nav button{white-space:nowrap;border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;cursor:pointer;font-weight:600;color:var(--prune)}
+  nav button.on{background:var(--prune);color:#fff;border-color:var(--prune)}
+  main{max-width:900px;margin:0 auto;padding:16px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin:0 0 12px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .stat b{display:block;font-size:26px;color:var(--prune)} .stat span{font-size:13px;color:var(--muted)}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff}
+  textarea{min-height:90px}
+  button.p{background:linear-gradient(135deg,var(--rose),var(--corail));color:#fff;border:0;border-radius:999px;padding:10px 18px;font-weight:700;cursor:pointer}
+  button.s{background:#fff;border:1.5px solid var(--rose);color:var(--rose);border-radius:999px;padding:8px 14px;font-weight:600;cursor:pointer}
+  button.ok{background:var(--ok);color:#fff;border:0;border-radius:999px;padding:8px 14px;font-weight:700;cursor:pointer}
+  button.bad{background:#fff;color:var(--bad);border:1.5px solid var(--bad);border-radius:999px;padding:8px 14px;font-weight:700;cursor:pointer}
+  .tag{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#FFF0E9;color:var(--prune)}
+  .tag.blue{background:#E3F0FA;color:var(--blue)} .tag.red{background:#FBE6E6;color:var(--bad)} .tag.green{background:#E6F4EC;color:var(--ok)}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap} .grow{flex:1}
+  pre{white-space:pre-wrap;font:inherit;margin:8px 0;max-height:260px;overflow:auto;background:#FFFAF9;border:1px solid var(--line);border-radius:10px;padding:10px}
+  .src a{color:var(--blue)} .src li{margin:3px 0;font-size:13px}
+  .avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;background:#eee;flex:none}
+  .msg{padding:10px;border-radius:10px;margin:8px 0} .msg.err{background:#FBE6E6;color:var(--bad)} .msg.good{background:#E6F4EC;color:var(--ok)}
+  .login{max-width:360px;margin:60px auto}
+  small{color:var(--muted)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+  var API = location.origin + "/api";
+  var token = sessionStorage.getItem("bw_admin_token") || "";
+  var state = { tab: "dash", queue: [], users: [], courses: [], reports: [], reported: [], audit: [], stats: null, msg: null, newPwd: null, selected: {}, filter: "A_VALIDER" };
+  var app = document.getElementById("app");
+
+  function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+  function safeUrl(u){ return /^https?:\/\//i.test(u) ? u : "#"; }
+
+  async function api(path, opts){
+    opts = opts || {};
+    var r = await fetch(API + path, {
+      method: opts.method || "GET",
+      headers: Object.assign({"Content-Type":"application/json"}, token ? {Authorization:"Bearer "+token} : {}),
+      body: opts.body ? JSON.stringify(opts.body) : undefined
+    });
+    var data = await r.json().catch(function(){ return {}; });
+    if (r.status === 401 && token) { logout(); throw new Error("Session expirée."); }
+    if (!r.ok) throw new Error(data.error || "Erreur " + r.status);
+    return data;
+  }
+  function logout(){ token = ""; sessionStorage.removeItem("bw_admin_token"); render(); }
+  function flash(text, kind){ state.msg = { text: text, kind: kind || "good" }; render(); }
+
+  async function load(){
+    try {
+      var res = await Promise.all([
+        api("/admin/stats"), api("/admin/queue?status=" + state.filter), api("/admin/users"),
+        api("/admin/courses"), api("/admin/reports"), api("/admin/audit"), api("/admin/reported-users")
+      ]);
+      state.stats = res[0]; state.queue = res[1]; state.users = res[2]; state.courses = res[3]; state.reports = res[4]; state.audit = res[5]; state.reported = res[6];
+    } catch(e){ if (token) flash(e.message, "err"); return; }
+    render();
+  }
+
+  function loginView(){
+    app.innerHTML = '<div class="login card"><h2 style="color:var(--prune)">Administration Bê Wali</h2>' +
+      '<label>E-mail</label><input id="em" type="email" autocomplete="username">' +
+      '<label>Mot de passe</label><input id="pw" type="password" autocomplete="current-password">' +
+      '<div id="lmsg"></div><p><button class="p" id="go">Se connecter</button></p>' +
+      '<small>Réservé aux comptes administrateurs.</small></div>';
+    document.getElementById("go").onclick = async function(){
+      try {
+        var r = await fetch(API + "/auth/login", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ email: document.getElementById("em").value.trim(), password: document.getElementById("pw").value }) });
+        var d = await r.json();
+        if (!r.ok) throw new Error(d.error || "Connexion impossible.");
+        if (!d.user || d.user.role !== "ADMIN") throw new Error("Ce compte n'est pas administrateur.");
+        token = d.token; sessionStorage.setItem("bw_admin_token", token); load();
+      } catch(e){ document.getElementById("lmsg").innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; }
+    };
+  }
+
+  var TABS = [["dash","Tableau de bord"],["queue","À valider"],["users","Comptes pro"],["courses","Formations"],["reports","Signalements"],["audit","Journal"]];
+
+  function render(){
+    if (!token) return loginView();
+    var pending = state.stats ? state.stats.pending.total : 0;
+    var html = '<header><h1>Bê Wali · Administration</h1><button id="out">Se déconnecter</button></header><nav>' +
+      TABS.map(function(t){ return '<button data-t="'+t[0]+'" class="'+(state.tab===t[0]?'on':'')+'">'+t[1]+(t[0]==="queue"&&pending?' ('+pending+')':'')+'</button>'; }).join("") + '</nav><main>';
+    if (state.msg) html += '<div class="msg '+state.msg.kind+'">'+esc(state.msg.text)+'</div>';
+    html += ({dash:dash, queue:queueView, users:usersView, courses:coursesView, reports:reportsView, audit:auditView}[state.tab])();
+    html += '</main>';
+    app.innerHTML = html;
+    document.getElementById("out").onclick = logout;
+    Array.prototype.forEach.call(app.querySelectorAll("nav button"), function(b){ b.onclick = function(){ state.tab = b.dataset.t; state.msg = null; state.newPwd = null; render(); }; });
+    bind();
+  }
+
+  function dash(){
+    var s = state.stats; if (!s) return "<p>Chargement…</p>";
+    return '<div class="grid">' +
+      [["Utilisatrices",s.users],["Professionnelles",s.professionals],["Contenus à valider",s.pending.total],["Fiches publiées",s.published.articles],["Formations publiées",s.published.courses],["Activités revenus publiées",s.published.income],["Inscriptions aux formations",s.enrollments],["Signalements ouverts",s.openReports]]
+      .map(function(x){ return '<div class="card stat"><b>'+x[1]+'</b><span>'+x[0]+'</span></div>'; }).join("") + '</div>' +
+      '<div class="card"><b>Comment ça marche</b><ol><li><b>Comptes pro</b> : tu crées le compte (avec photo) d\'une sage-femme, d\'un médecin, d\'une psychologue, d\'une coach ou d\'une formatrice.</li><li>Elles se connectent dans l\'application et <b>proposent</b> des fiches, formations ou activités.</li><li>Tout arrive dans <b>À valider</b> : tu lis, tu vérifies les sources, tu approuves ou tu refuses avec un motif.</li><li>Seul ce qui est <b>publié</b> est visible des filles.</li></ol></div>';
+  }
+
+  function srcList(sources){
+    if (!sources || !sources.length) return '<p class="msg err">Aucune source : impossible de publier tant qu\'une source n\'est pas ajoutée.</p>';
+    return '<ul class="src">' + sources.map(function(s){ return '<li>'+esc(s.org)+' — <a href="'+esc(safeUrl(s.url))+'" target="_blank" rel="noopener noreferrer">'+esc(s.title)+'</a></li>'; }).join("") + '</ul>';
+  }
+
+  function queueView(){
+    var filters = [["A_VALIDER","À valider"],["PUBLIE","Publiés"],["REJETE","Refusés"]];
+    var h = '<div class="row" style="margin-bottom:10px">' + filters.map(function(f){ return '<button class="'+(state.filter===f[0]?'p':'s')+'" data-f="'+f[0]+'">'+f[1]+'</button>'; }).join("") + '<span class="grow"></span>' +
+      (state.filter==="A_VALIDER" ? '<button class="ok" id="bulk">Approuver la sélection</button>' : '') + '</div>';
+    if (!state.queue.length) return h + '<div class="card">Rien dans cette liste.</div>';
+    return h + state.queue.map(function(it){
+      var key = it.type + ":" + it.id;
+      return '<div class="card"><div class="row">' +
+        (state.filter==="A_VALIDER" ? '<input type="checkbox" style="width:auto" data-sel="'+esc(key)+'" '+(state.selected[key]?'checked':'')+'>' : '') +
+        '<div class="grow"><b>'+esc(it.title)+'</b><br><small>'+esc(it.category)+(it.author?' · proposé par '+esc(it.author.fullName)+' ('+esc(it.author.profession)+')':' · contenu de départ')+'</small></div>' +
+        '<span class="tag '+(it.status==="PUBLIE"?"green":it.status==="REJETE"?"red":"")+'">'+esc(it.status)+'</span></div>' +
+        '<details><summary style="cursor:pointer;margin-top:8px">Lire le contenu</summary><pre>'+esc(it.body)+'</pre></details>' +
+        (it.reviewNote ? '<p><small>Note : '+esc(it.reviewNote)+'</small></p>' : '') +
+        '<b style="font-size:13px">Sources</b>' + srcList(it.sources) +
+        '<div class="row">' +
+        (it.status!=="PUBLIE" ? '<button class="ok" data-ap="'+esc(key)+'">Approuver et publier</button>' : '<button class="s" data-un="'+esc(key)+'">Retirer de la publication</button>') +
+        (it.status==="A_VALIDER" ? '<button class="bad" data-rj="'+esc(key)+'">Refuser…</button>' : '') +
+        '</div></div>';
+    }).join("");
+  }
+
+  function usersView(){
+    var h = '<div class="card"><b>Créer un compte professionnel</b>' +
+      '<label>Nom complet</label><input id="u_name" placeholder="Mireille N.">' +
+      '<label>E-mail</label><input id="u_mail" type="email">' +
+      '<label>Rôle</label><select id="u_role"><option value="PROFESSIONNELLE">Professionnelle de santé (sage-femme, médecin, psychologue…)</option><option value="COACH">Coach</option><option value="FORMATRICE">Formatrice</option><option value="MODERATRICE">Modératrice</option></select>' +
+      '<label>Profession affichée</label><input id="u_prof" placeholder="Sage-femme · Psychologue · Coach en entrepreneuriat…">' +
+      '<label>Courte présentation (facultatif)</label><textarea id="u_bio" maxlength="600"></textarea>' +
+      '<label>Photo (obligatoire, visage visible)</label><input id="u_photo" type="file" accept="image/jpeg,image/png,image/webp"><img id="u_prev" class="avatar" style="margin-top:8px;display:none">' +
+      '<label><input id="u_cert" type="checkbox" style="width:auto"> Badge bleu « certifiée » (diplôme vérifié)</label>' +
+      '<p><button class="p" id="u_go">Créer le compte</button></p>' +
+      (state.newPwd ? '<div class="msg good"><b>Mot de passe provisoire (affiché une seule fois) :</b><br><code style="font-size:18px">'+esc(state.newPwd.pwd)+'</code><br><small>Pour '+esc(state.newPwd.email)+'. Transmets-le en privé : elle devra le changer à la première connexion.</small></div>' : '') +
+      '</div>';
+    h += state.users.map(function(u){
+      return '<div class="card"><div class="row">' +
+        (u.photoUrl ? '<img class="avatar" src="'+esc(u.photoUrl)+'" alt="">' : '<div class="avatar"></div>') +
+        '<div class="grow"><b>'+esc(u.fullName||u.email)+'</b> '+(u.certified?'<span class="tag blue">✓ certifiée</span>':'')+(u.active?'':' <span class="tag red">désactivé</span>')+'<br><small>'+esc(u.profession||"")+' · '+esc(u.role)+' · '+esc(u.email)+'</small></div></div>' +
+        '<div class="row" style="margin-top:8px"><button class="s" data-cert="'+u.id+'" data-v="'+(!u.certified)+'">'+(u.certified?'Retirer le badge':'Donner le badge bleu')+'</button>' +
+        '<button class="s" data-act="'+u.id+'" data-v="'+(!u.active)+'">'+(u.active?'Désactiver':'Réactiver')+'</button>' +
+        '<button class="s" data-rp="'+u.id+'" data-email="'+esc(u.email)+'">Nouveau mot de passe</button></div></div>';
+    }).join("") || '<div class="card">Aucun compte professionnel pour le moment.</div>';
+    return h;
+  }
+
+  function coursesView(){
+    return '<p><small>Ici tu suis les formations publiées et tu peux reporter une session. Le motif reste interne : les filles voient seulement « reportée — formatrice indisponible » avec la nouvelle date.</small></p>' +
+      (state.courses.map(function(c){
+        return '<div class="card"><div class="row"><div class="grow"><b>'+esc(c.title)+'</b><br><small>'+c.enrollments+' inscrite(s) · '+esc(c.status)+' · '+esc(c.state)+(c.startsAt?' · '+new Date(c.startsAt).toLocaleString("fr-FR"):'')+(c.postponedTo?' → reportée au '+new Date(c.postponedTo).toLocaleString("fr-FR"):'')+'</small></div></div>' +
+          '<div class="row" style="margin-top:8px"><input type="datetime-local" data-dt="'+c.id+'" style="max-width:230px"><button class="s" data-sched="'+c.id+'">Programmer la date</button><button class="bad" data-post="'+c.id+'">Reporter à cette date</button></div></div>';
+      }).join("") || '<div class="card">Aucune formation.</div>');
+  }
+
+  var RS = {HAINE:"Message haineux",RACISME:"Racisme",HARCELEMENT:"Harcèlement",VIOLENCE:"Menaces / violence",SEXUEL:"Contenu sexuel",PROFIL_SUSPECT:"Profil suspect",ARNAQUE:"Arnaque",SPAM:"Spam",AUTRE:"Autre"};
+  function reportsView(){
+    var users = state.reported.map(function(u){
+      var susp = u.suspendedUntil ? '<span class="pill">Suspendue jusqu\'au '+new Date(u.suspendedUntil).toLocaleString("fr-FR")+'</span> <button data-lift="'+u.id+'">Lever</button>' : '';
+      return '<tr><td>'+esc(u.pseudonyme)+'</td><td>'+esc(u.ageBracket)+'</td><td><b>'+u.reportsReceived+'</b></td><td>'+u.suspensionCount+'</td><td>'+susp+'</td></tr>';
+    }).join("");
+    var usersCard = '<div class="card"><b>Personnes signalées</b><table><tr><th>Pseudo</th><th>Âge</th><th>Signalements</th><th>Suspensions</th><th>État</th></tr>'+(users||'<tr><td colspan="5">Personne pour le moment.</td></tr>')+'</table><small>Dès 10 signalements de personnes différentes sur un message : message masqué, puis suspension 72 h, puis 10 jours, puis 3 mois.</small></div>';
+    var msgs = state.reports.map(function(r){
+      var why = Object.keys(r.reasons).map(function(k){ return (RS[k]||k)+" ×"+r.reasons[k]; }).join(", ");
+      return '<div class="card"><b>'+r.count+' signalement(s)</b> '+(r.isHidden?'<span class="pill">Masqué</span>':'')+'<p>'+esc(r.excerpt)+'</p><small>'+esc(why)+'<br>Signalé par : '+r.reporters.map(esc).join(", ")+'</small></div>';
+    }).join("") || '<div class="card">Aucun signalement ouvert.</div>';
+    return usersCard + msgs;
+  }
+
+  function auditView(){
+    return '<div class="card">' + (state.audit.map(function(a){ return '<div style="padding:6px 0;border-bottom:1px solid var(--line)"><small>'+new Date(a.createdAt).toLocaleString("fr-FR")+'</small> · <b>'+esc(a.action)+'</b> · '+esc(a.target)+'</div>'; }).join("") || "Journal vide.") + '</div>';
+  }
+
+  // --- redimensionne la photo avant envoi (max 640 px, JPEG) ---
+  function fileToDataUrl(file){
+    return new Promise(function(resolve, reject){
+      var fr = new FileReader();
+      fr.onerror = function(){ reject(new Error("Lecture de la photo impossible.")); };
+      fr.onload = function(){
+        var img = new Image();
+        img.onerror = function(){ reject(new Error("Image illisible.")); };
+        img.onload = function(){
+          var max = 640, w = img.width, h = img.height, k = Math.min(1, max / Math.max(w, h));
+          var c = document.createElement("canvas"); c.width = Math.round(w * k); c.height = Math.round(h * k);
+          c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+          resolve(c.toDataURL("image/jpeg", 0.85));
+        };
+        img.src = fr.result;
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+
+  function bind(){
+    function $$(sel){ return Array.prototype.slice.call(app.querySelectorAll(sel)); }
+    function act(fn){ return async function(){ try { await fn.apply(this, arguments); } catch(e){ flash(e.message, "err"); } }; }
+
+    $$("[data-f]").forEach(function(b){ b.onclick = function(){ state.filter = b.dataset.f; load(); }; });
+    $$("[data-sel]").forEach(function(c){ c.onchange = function(){ state.selected[c.dataset.sel] = c.checked; }; });
+    $$("[data-ap]").forEach(function(b){ b.onclick = act(async function(){ var k=b.dataset.ap.split(":"); await api("/admin/review/"+k[0]+"/"+k[1], {method:"POST", body:{decision:"approve"}}); flash("Publié."); await load(); }); });
+    $$("[data-un]").forEach(function(b){ b.onclick = act(async function(){ var k=b.dataset.un.split(":"); await api("/admin/review/"+k[0]+"/"+k[1], {method:"POST", body:{decision:"unpublish"}}); flash("Retiré de la publication."); await load(); }); });
+    $$("[data-rj]").forEach(function(b){ b.onclick = act(async function(){ var note = prompt("Motif du refus (obligatoire) :"); if (!note) return; var k=b.dataset.rj.split(":"); await api("/admin/review/"+k[0]+"/"+k[1], {method:"POST", body:{decision:"reject", note:note}}); flash("Refusé avec motif."); await load(); }); });
+    $$("[data-lift]").forEach(function(b){ b.onclick = act(async function(){ if (!confirm("Lever la suspension de cette personne ?")) return; await api("/admin/users/"+b.dataset.lift+"/lift-suspension", {method:"POST", body:{}}); flash("Suspension levée."); await load(); }); });
+    var bulk = document.getElementById("bulk");
+    if (bulk) bulk.onclick = act(async function(){
+      var items = Object.keys(state.selected).filter(function(k){ return state.selected[k]; }).map(function(k){ var p=k.split(":"); return {type:p[0], id:p[1]}; });
+      if (!items.length) return flash("Coche d'abord les contenus à approuver.", "err");
+      if (!confirm("Approuver et publier " + items.length + " contenu(s) ? Assure-toi de les avoir relus.")) return;
+      var r = await api("/admin/review-bulk", {method:"POST", body:{items:items, decision:"approve"}});
+      var bad = r.results.filter(function(x){ return !x.ok; });
+      state.selected = {};
+      flash((r.results.length - bad.length) + " publié(s)" + (bad.length ? ", " + bad.length + " refusé(s) par le contrôle : " + bad[0].error : "."), bad.length ? "err" : "good");
+      await load();
+    });
+
+    var photo = document.getElementById("u_photo");
+    var photoData = "";
+    if (photo) photo.onchange = act(async function(){ if (!photo.files[0]) return; photoData = await fileToDataUrl(photo.files[0]); var p = document.getElementById("u_prev"); p.src = photoData; p.style.display = "block"; });
+    var go = document.getElementById("u_go");
+    if (go) go.onclick = act(async function(){
+      if (!photoData) return flash("La photo est obligatoire.", "err");
+      var r = await api("/admin/users", { method:"POST", body:{ fullName: v("u_name"), email: v("u_mail"), role: v("u_role"), profession: v("u_prof"), bio: v("u_bio") || undefined, certified: document.getElementById("u_cert").checked, photo: photoData } });
+      state.newPwd = { pwd: r.temporaryPassword, email: v("u_mail") };
+      await load();
+    });
+    function v(id){ return document.getElementById(id).value.trim(); }
+    $$("[data-cert]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/users/"+b.dataset.cert, {method:"PATCH", body:{certified: b.dataset.v==="true"}}); await load(); }); });
+    $$("[data-act]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/users/"+b.dataset.act, {method:"PATCH", body:{active: b.dataset.v==="true"}}); await load(); }); });
+    $$("[data-rp]").forEach(function(b){ b.onclick = act(async function(){ if(!confirm("Générer un nouveau mot de passe provisoire ?")) return; var r = await api("/admin/users/"+b.dataset.rp+"/reset-password", {method:"POST"}); state.newPwd = { pwd: r.temporaryPassword, email: b.dataset.email }; state.tab = "users"; render(); }); });
+    function dt(id){ var el = app.querySelector('[data-dt="'+id+'"]'); if (!el || !el.value) throw new Error("Choisis d'abord une date et une heure."); return new Date(el.value).toISOString(); }
+    $$("[data-sched]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/courses/"+b.dataset.sched+"/schedule", {method:"PATCH", body:{startsAt: dt(b.dataset.sched), state:"OUVERT"}}); flash("Date programmée."); await load(); }); });
+    $$("[data-post]").forEach(function(b){ b.onclick = act(async function(){ var why = prompt("Motif interne (non visible des filles) :") || ""; await api("/admin/courses/"+b.dataset.post+"/schedule", {method:"PATCH", body:{postponedTo: dt(b.dataset.post), state:"REPORTEE", internalReason: why}}); flash("Session reportée. Les filles verront : formatrice indisponible + nouvelle date."); await load(); }); });
+  }
+
+  if (token) load(); else render();
+})();
+</script>
+</body>
+</html>

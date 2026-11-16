@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: "file:./ci.db"
+      JWT_SECRET: "ci-secret-not-for-production"
+      ADMIN_EMAIL: "admin@ci.test"
+      ADMIN_PASSWORD: "ci-admin-password-12345"
+      PORT: "4000"
+      UPLOAD_DIR: "./ci-uploads"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Vérification des types
+        run: npx tsc --noEmit
+      - name: Base de test + contenus de départ
+        run: |
+          npx prisma db push --skip-generate
+          npm run seed
+      - name: Compilation
+        run: npm run build
+      - name: Test de bout en bout (validation admin, comptes pro, accès)
+        run: |
+          node dist/index.js > server.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:4000/api/health && break || sleep 1; done
+          node scripts/smoke.mjs || (cat server.log; exit 1)
+
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - name: Vérification des types
+        run: npx tsc --noEmit

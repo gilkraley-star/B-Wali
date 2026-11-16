@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Bê Wali",
+    "slug": "be-wali",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#FFF5F4"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "package": "org.naxaci.bewali",
+      "adaptiveIcon": {
+        "backgroundColor": "#FFF5F4"
+      },
+      "permissions": [
+        "READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "extra": {
+      "apiBaseUrl": "http://10.0.2.2:4000/api"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Bê Wali a besoin d'accéder à tes photos pour choisir la photo du profil.",
+          "cameraPermission": "Bê Wali a besoin de la caméra pour prendre ta photo à l'inscription."
+        }
+      ]
+    ]
+  }
+}

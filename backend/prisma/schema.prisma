@@ -1,0 +1,349 @@
+// Bê Wali — schéma de base de données
+//
+// Dev: SQLite (zéro configuration, fichier local dev.db)
+// Prod: changez juste `provider` en "postgresql" et DATABASE_URL dans .env
+// (le modèle Prisma reste identique — aucune migration de code nécessaire).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// AgeBracket (String) : ADOLESCENTE (10-17) | JEUNE_FEMME (18-25) | FEMME_ADULTE (26+)
+// Role (String) : UTILISATRICE | PROFESSIONNELLE | COACH | FORMATRICE | MODERATRICE | ADMIN
+// ContentStatus (String) : BROUILLON | A_VALIDER | PUBLIE | REJETE
+// ReportStatus (String) : OUVERT | EN_COURS | TRAITE | REJETE
+
+model User {
+  id            String   @id @default(uuid())
+  email         String?  @unique // facultatif : beaucoup de filles n'ont pas d'e-mail
+  phone         String?  @unique // numéro de téléphone normalisé (+236…), sert aussi à se connecter
+  passwordHash  String
+  pseudonyme    String   @unique // identité publique dans le forum — jamais le vrai nom
+  ageBracket    String
+  role          String   @default("UTILISATRICE")
+  // Comptes professionnels (créés par l'admin) : sage-femme, médecin, psychologue, coach, formatrice…
+  fullName      String?
+  profession    String?   // ex. "Sage-femme", "Psychologue", "Coach en entrepreneuriat"
+  bio           String?
+  photoUrl      String?   // /uploads/xxx.jpg — photo du profil professionnel
+  certified     Boolean   @default(false) // badge bleu "certifié(e)"
+  available     Boolean   @default(false)
+  active        Boolean   @default(true)
+  mustChangePassword Boolean @default(false)
+  birthDate       DateTime? // date de naissance obligatoire à l'inscription ; la tranche d'âge en est déduite
+  suspendedUntil  DateTime? // suspendue (ne peut plus écrire) jusqu'à cette date
+  suspensionCount Int      @default(0) // 1re fois 72 h, 2e fois 10 jours, 3e fois et plus 3 mois
+  termsAcceptedAt DateTime? // date d'acceptation des conditions d'utilisation (pas d'accord parental demandé)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Confidentialité (section 7 du dossier)
+  participatesForum Boolean @default(true) // peut utiliser le calendrier seul, sans le forum
+  dataRetentionAcknowledged Boolean @default(false)
+
+  periods       CyclePeriod[]
+  symptoms      SymptomLog[]
+  reminders     Reminder[]
+  posts         ForumPost[]
+  comments      ForumComment[]
+  reportsFiled  Report[] @relation("ReportsFiled")
+  savedArticles SavedArticle[]
+  articlesAuthored Article[] @relation("ArticleAuthor")
+  coursesAuthored  Course[]  @relation("CourseAuthor")
+  incomeAuthored   IncomeActivity[] @relation("IncomeAuthor")
+
+  @@index([ageBracket])
+}
+
+// --- MON CYCLE (section 5.1) ---
+
+model CyclePeriod {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startDate DateTime
+  endDate   DateTime?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, startDate])
+}
+
+model SymptomLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime
+  type      String   // douleur | fatigue | humeur | autre
+  intensity Int      @default(1) // 1-5
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model Reminder {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String
+  daysBefore Int     @default(2) // rappel avant règles estimées
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+// --- JE M'INFORME (section 5.3) ---
+
+model ArticleCategory {
+  id       String    @id @default(uuid())
+  slug     String    @unique
+  titleFr  String
+  titleSg  String?
+  articles Article[]
+}
+
+model Article {
+  id          String   @id @default(uuid())
+  categoryId  String
+  category    ArticleCategory @relation(fields: [categoryId], references: [id])
+  slug        String   @unique
+  titleFr     String
+  titleSg     String?
+  bodyFr      String   // markdown simple
+  bodySg      String?
+  format      String   @default("article") // article | fiche | quiz | audio | infographie
+  downloadable Boolean @default(true)
+  reviewedBy  String?  // nom/role du professionnel ayant validé le contenu
+  status      String   @default("A_VALIDER") // BROUILLON | A_VALIDER | PUBLIE | REJETE
+  sourcesJson String   @default("[]")        // [{title, org, url}]
+  authorId    String?
+  author      User?    @relation("ArticleAuthor", fields: [authorId], references: [id])
+  reviewNote  String?  // commentaire de l'admin lors du rejet/de la validation
+  updatedAt   DateTime @default(now()) @updatedAt
+  publishedAt DateTime @default(now())
+  savedBy     SavedArticle[]
+}
+
+model SavedArticle {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  articleId String
+  article   Article  @relation(fields: [articleId], references: [id])
+  savedAt   DateTime @default(now())
+
+  @@unique([userId, articleId])
+}
+
+// --- ENTRE NOUS (section 5.2) — forum communautaire modéré ---
+
+model ForumCategory {
+  id      String @id @default(uuid())
+  slug    String @unique
+  titleFr String
+  titleSg String?
+  // Catégorie réservée à une tranche d'âge (ex: espace ados séparé) — null = ouverte à toutes
+  restrictedTo String?
+  posts   ForumPost[]
+}
+
+model ForumPost {
+  id         String   @id @default(uuid())
+  categoryId String
+  category   ForumCategory @relation(fields: [categoryId], references: [id])
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+  title      String
+  body       String
+  isModerated Boolean @default(false) // true = validé visible publiquement
+  isHidden   Boolean  @default(false) // masqué suite à signalement traité
+  createdAt  DateTime @default(now())
+
+  comments ForumComment[]
+  reports  Report[]
+
+  @@index([categoryId, createdAt])
+}
+
+model ForumComment {
+  id        String   @id @default(uuid())
+  postId    String
+  post      ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  body      String
+  mediaUrl  String?  // photo ou vidéo jointe (supprimée avec le message)
+  mediaType String?  // "image" | "video"
+  isHidden  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  reports Report[]
+  reactions ForumReaction[]
+}
+
+model ForumReaction {
+  id        String @id @default(uuid())
+  commentId String
+  comment   ForumComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([commentId, userId]) // une seule réaction par personne et par message (elle peut la changer)
+}
+
+model Report {
+  id          String   @id @default(uuid())
+  reporterId  String
+  reporter    User     @relation("ReportsFiled", fields: [reporterId], references: [id])
+  postId      String?
+  post        ForumPost? @relation(fields: [postId], references: [id])
+  commentId   String?
+  comment     ForumComment? @relation(fields: [commentId], references: [id])
+  reportedUserId String? // l'auteur du message signalé (pour compter les signalements par personne)
+  reason      String
+  status      String   @default("OUVERT")
+  createdAt   DateTime @default(now())
+  resolvedAt  DateTime?
+}
+
+// --- FORMATIONS (cours en direct ou en replay, avec attestation) ---
+
+model Course {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  title       String
+  summary     String
+  icon        String   @default("🎓")
+  partner     String?  // entité partenaire (ex. FAFECA) — mention sur l'attestation
+  durationMin Int      @default(60)
+  format      String   @default("DIRECT") // DIRECT | REPLAY
+  startsAt    DateTime?
+  postponedTo DateTime?
+  state       String   @default("OUVERT") // OUVERT | REPORTEE | TERMINEE
+  outlineMd   String   // plan du cours en markdown
+  qcmJson     String   @default("[]") // [{q, options[], correct}]
+  sourcesJson String   @default("[]")
+  status      String   @default("A_VALIDER")
+  reviewNote  String?
+  authorId    String?
+  author      User?    @relation("CourseAuthor", fields: [authorId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+  enrollments Enrollment[]
+}
+
+model Enrollment {
+  id         String   @id @default(uuid())
+  userId     String
+  courseId   String
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  attendedToEnd Boolean @default(false) // vrai seulement si la fille a suivi le direct jusqu'à la fin
+  score      Int?
+  certificateNo String?
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, courseId])
+}
+
+// --- GAGNER UN REVENU ---
+
+model IncomeActivity {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  title       String
+  icon        String   @default("💼")
+  capitalMinFcfa Int
+  summary     String
+  needsMd     String   // ce qu'il faut pour démarrer
+  stepsMd     String   // comment démarrer
+  risksMd     String   // précautions
+  courseSlug  String?  // formation liée
+  sourcesJson String   @default("[]")
+  status      String   @default("A_VALIDER")
+  reviewNote  String?
+  authorId    String?
+  author      User?    @relation("IncomeAuthor", fields: [authorId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+}
+
+// --- Journal d'administration (qui a validé/rejeté/créé quoi) ---
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String
+  action    String
+  target    String
+  createdAt DateTime @default(now())
+}
+
+
+// --- BIBLIOTHÈQUE D'HISTOIRES (contes, héroïnes, éducation, romans 18+) ---
+// Règles : on ne copie JAMAIS un texte protégé. Chaque histoire indique son origine et sa licence.
+//   ORIGINALE      : écrite pour Bê Wali (ou par une autrice partenaire qui a donné son accord)
+//   DOMAINE_PUBLIC : auteur mort depuis plus de 70 ans (vérifier la loi du pays)
+//   LICENCE_LIBRE  : Creative Commons (ex. African Storybook, CC BY ou CC BY-NC) — nom de l'auteur obligatoire
+
+model Story {
+  id        String   @id @default(uuid())
+  slug      String   @unique
+  title     String
+  summary   String
+  category  String   // CONTE | HEROINE | EDUCATION | AMOUR | ICI
+  ageMin    Int      @default(10) // les romans d'amour : 18
+  icon      String   @default("📖")
+  origin    String   // ORIGINALE | DOMAINE_PUBLIC | LICENCE_LIBRE
+  credit    String   // nom de l'autrice / de l'auteur / de la source
+  license   String?  // ex. CC BY
+  sourceUrl String?
+  readMin   Int      @default(10)
+  status    String   @default("A_VALIDER") // A_VALIDER | PUBLIE | REJETE
+  reviewNote String?
+  createdAt DateTime @default(now())
+  chapters  StoryChapter[]
+}
+
+model StoryChapter {
+  id       String @id @default(uuid())
+  storyId  String
+  story    Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  position Int
+  title    String
+  body     String
+
+  @@unique([storyId, position])
+}
+
+
+// --- JEUX : étoiles et progression (calculées par le SERVEUR) ---
+// Une étoile = une ligne dans StarEvent. Le total et le classement sont toujours recalculés depuis ce registre.
+model StarEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  game      String   // quiz-culture | quiz-english | mm-fr | mm-en | awale | ludo
+  refKey    String   // ex. "L12#r4" — empêche de gagner deux fois la même chose
+  stars     Int
+  createdAt DateTime @default(now())
+
+  @@unique([userId, game, refKey])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+model GameLevel {
+  id        String   @id @default(uuid())
+  userId    String
+  game      String
+  level     Int      // niveau du quiz ou numéro de la série de mots mêlés
+  bestRight Int      @default(0)
+  passed    Boolean  @default(false)
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([userId, game, level])
+}
