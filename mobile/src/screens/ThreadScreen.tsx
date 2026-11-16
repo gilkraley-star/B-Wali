@@ -1,3 +1,4 @@
+import { useRealtime } from "../realtime/realtime";
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, FlatList, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -72,6 +73,10 @@ export default function ThreadScreen({ route }: any) {
   }, [postId]);
 
   useFocusEffect(load);
+  // Temps réel : un nouveau message ou une réaction arrive sans rien actualiser
+  useRealtime((e) => {
+    if (e.t === "comment" && e.post === postId) apiRequest<Post>(`/forum/posts/${postId}`, { silent: true }).then(setPost).catch(() => {});
+  });
 
   const pickMedia = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();

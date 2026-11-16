@@ -13,6 +13,8 @@ import adminRoutes from "./routes/admin";
 import proRoutes from "./routes/pro";
 import catalogRoutes from "./routes/catalog";
 import storiesRoutes from "./routes/stories";
+import http from "http";
+import { attachRealtime } from "./utils/realtime";
 import assistantRoutes from "./routes/assistant";
 import liveRoutes from "./routes/live";
 import gamesRoutes from "./routes/games";
@@ -86,7 +88,9 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 });
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
+const server = http.createServer(app);
+attachRealtime(server);
+server.listen(PORT, () => {
   console.log(`Bê Wali API démarrée sur le port ${PORT}`);
   startRetentionJob();
 });

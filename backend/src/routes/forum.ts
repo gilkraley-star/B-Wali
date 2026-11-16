@@ -1,3 +1,4 @@
+import { broadcast } from "../utils/realtime";
 import { suspensionError, applyThreshold } from "../utils/moderation";
 import { Router } from "express";
 import { z } from "zod";
@@ -49,6 +50,7 @@ router.post("/posts", requireAuth, async (req: AuthRequest, res) => {
   const post = await prisma.forumPost.create({
     data: { ...parsed.data, authorId: req.userId! },
   });
+  broadcast({ t: "post", cat: post.categoryId });
   res.status(201).json(post);
 });
 
@@ -148,6 +150,7 @@ router.post("/posts/:id/comments", requireAuth, async (req: AuthRequest, res) =>
       mediaType: parsed.data.mediaType ?? null,
     },
   });
+  broadcast({ t: "comment", post: post.id });
   res.status(201).json(comment);
 });
 
@@ -170,6 +173,7 @@ router.put("/comments/:id/reaction", requireAuth, async (req: AuthRequest, res) 
       update: { emoji },
     });
   }
+  broadcast({ t: "comment", post: c.postId });
   res.json({ ok: true });
 });
 

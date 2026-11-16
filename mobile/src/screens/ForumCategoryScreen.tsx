@@ -1,3 +1,4 @@
+import { useRealtime } from "../realtime/realtime";
 import React, { useCallback, useEffect, useState } from "react";
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
@@ -24,6 +25,9 @@ export default function ForumCategoryScreen({ route, navigation }: any) {
   }, [categoryId]);
 
   useFocusEffect(load);
+  useRealtime((e) => {
+    if (e.t === "post" && e.cat === categoryId) apiRequest<Post[]>(`/forum/categories/${categoryId}/posts`, { silent: true }).then(setPosts).catch(() => {});
+  });
 
   return (
     <FlatList
