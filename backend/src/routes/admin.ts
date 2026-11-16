@@ -7,6 +7,7 @@ import { requireAuth, requireRole, AuthRequest } from "../middleware/auth";
 import { savePhotoFromDataUrl, deletePhoto } from "../utils/uploads";
 import { parseSources, sourcesSchema } from "../utils/sources";
 import { articleInput, courseInput, incomeInput, slugify } from "../utils/content";
+import { renderCertificate, frDate } from "../utils/certificate";
 
 const router = Router();
 router.use(requireAuth, requireRole("ADMIN"));
@@ -287,7 +288,7 @@ router.put("/content/:type/:id/sources", async (req: AuthRequest, res) => {
 // ---------------------------------------------------------------------------
 router.get("/courses", async (_req, res) => {
   const courses = await prisma.course.findMany({ include: { _count: { select: { enrollments: true } } }, orderBy: { createdAt: "asc" } });
-  res.json(courses.map((c) => ({ id: c.id, slug: c.slug, title: c.title, status: c.status, state: c.state, startsAt: c.startsAt, postponedTo: c.postponedTo, enrollments: c._count.enrollments })));
+  res.json(courses.map((c) => ({ id: c.id, slug: c.slug, title: c.title, status: c.status, state: c.state, certTemplateId: c.certTemplateId, startsAt: c.startsAt, postponedTo: c.postponedTo, enrollments: c._count.enrollments })));
 });
 
 router.patch("/courses/:id/schedule", async (req: AuthRequest, res) => {
@@ -300,6 +301,70 @@ router.patch("/courses/:id/schedule", async (req: AuthRequest, res) => {
   const c = await prisma.course.update({ where: { id: req.params.id }, data });
   // Le motif est journalisé pour l'équipe uniquement ; les filles voient seulement « reportée : formatrice indisponible ».
   await audit(req.userId, "SCHEDULE_COURSE", `${c.title} ${p.data.state || ""} ${p.data.internalReason ? "(motif interne)" : ""}`);
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// Attestations : modèles (fond, champs, signatures, cachet) préparés ici, remplis automatiquement pour chaque apprenante
+// ---------------------------------------------------------------------------
+const imgData = z.string().max(5_000_000);
+const fieldSchema = z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), size: z.number().min(6).max(80) });
+const signerSchema = z.object({ name: z.string().min(2).max(80), title: z.string().max(80), sigUrl: z.string().optional(), sig: imgData.optional() });
+const tplBody = z.object({
+  name: z.string().min(2).max(80).optional(),
+  bg: imgData.optional(),
+  stamp: imgData.optional(),
+  stampX: z.number().min(0).max(1).optional(), stampY: z.number().min(0).max(1).optional(), stampSize: z.number().min(0.05).max(0.5).optional(),
+  fields: z.record(fieldSchema).optional(),
+  signers: z.array(signerSchema).max(4).optional(),
+});
+
+router.get("/cert-templates", async (_req, res) => {
+  res.json(await prisma.certTemplate.findMany({ orderBy: { createdAt: "asc" } }));
+});
+
+async function saveTpl(id: string | null, b: z.infer<typeof tplBody>) {
+  const old = id ? await prisma.certTemplate.findUnique({ where: { id } }) : null;
+  const data: any = {};
+  if (b.name) data.name = b.name;
+  if (b.bg) { deletePhoto(old?.bgUrl); data.bgUrl = savePhotoFromDataUrl(b.bg); }
+  if (b.stamp) { deletePhoto(old?.stampUrl); data.stampUrl = savePhotoFromDataUrl(b.stamp); }
+  for (const k of ["stampX", "stampY", "stampSize"] as const) if (b[k] !== undefined) data[k] = b[k];
+  if (b.fields) data.fieldsJson = JSON.stringify(b.fields);
+  if (b.signers) {
+    data.signersJson = JSON.stringify(b.signers.map((sg) => ({ name: sg.name, title: sg.title, sigUrl: sg.sig ? savePhotoFromDataUrl(sg.sig) : sg.sigUrl || null })));
+  }
+  return old ? prisma.certTemplate.update({ where: { id: old.id }, data }) : prisma.certTemplate.create({ data: { name: data.name || "Attestation", bgUrl: data.bgUrl, ...data } });
+}
+
+router.post("/cert-templates", async (req: AuthRequest, res) => {
+  const p = tplBody.safeParse(req.body);
+  if (!p.success || !p.data.bg) return res.status(400).json({ error: "Donne un nom et l'image de fond de l'attestation." });
+  try { const t = await saveTpl(null, p.data); await audit(req.userId, "CREATE_CERT_TEMPLATE", t.name); res.status(201).json(t); }
+  catch (e: any) { res.status(400).json({ error: e.message || "Image invalide." }); }
+});
+router.patch("/cert-templates/:id", async (req: AuthRequest, res) => {
+  const p = tplBody.safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: "Données invalides." });
+  try { const t = await saveTpl(req.params.id, p.data); await audit(req.userId, "UPDATE_CERT_TEMPLATE", t.name); res.json(t); }
+  catch (e: any) { res.status(400).json({ error: e.message || "Image invalide." }); }
+});
+router.delete("/cert-templates/:id", async (req: AuthRequest, res) => {
+  await prisma.course.updateMany({ where: { certTemplateId: req.params.id }, data: { certTemplateId: null } });
+  await prisma.certTemplate.delete({ where: { id: req.params.id } }).catch(() => undefined);
+  res.json({ ok: true });
+});
+// Aperçu avec une apprenante fictive (renvoyé en base64 : le navigateur l'ouvre)
+router.post("/cert-templates/:id/preview", async (req, res) => {
+  const t = await prisma.certTemplate.findUnique({ where: { id: req.params.id } });
+  if (!t) return res.status(404).json({ error: "Modèle introuvable." });
+  const pdf = await renderCertificate(t, { fullName: "Marie Exemple Ngaïssona", birthDate: "2008-03-14", birthPlace: "Bangui", courseTitle: "Titre de la formation", dateText: "Fait à Bangui, le " + frDate(new Date().toISOString().slice(0, 10)), number: "BW-APERCU-0001" });
+  res.json({ pdf: Buffer.from(pdf).toString("base64") });
+});
+router.patch("/courses/:id/template", async (req: AuthRequest, res) => {
+  const p = z.object({ certTemplateId: z.string().nullable() }).safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: "Données invalides." });
+  await prisma.course.update({ where: { id: req.params.id }, data: { certTemplateId: p.data.certTemplateId } });
   res.json({ ok: true });
 });
 

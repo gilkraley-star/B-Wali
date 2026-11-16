@@ -1,4 +1,6 @@
 import { useAuth } from "../context/AuthContext";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, FlatList, StyleSheet, Text, View } from "react-native";
 import { apiRequest, ApiError } from "../api/client";
@@ -53,6 +55,16 @@ export default function FormationsScreen({ navigation }: any) {
     load();
   }, [load]);
 
+  const downloadCert = async (slug: string) => {
+    try {
+      const r = await apiRequest<{ pdf: string; fileName: string }>(`/catalog/courses/${slug}/certificate`);
+      const uri = (FileSystem.cacheDirectory || "") + r.fileName;
+      await FileSystem.writeAsStringAsync(uri, r.pdf, { encoding: FileSystem.EncodingType.Base64 });
+      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "Mon attestation" });
+      else Alert.alert("Attestation prête", uri);
+    } catch (err) { Alert.alert("Attestation", err instanceof ApiError ? err.message : "Réessaie plus tard."); }
+  };
+
   const enroll = async (slug: string) => {
     try {
       await apiRequest(`/catalog/courses/${slug}/enroll`, { method: "POST" });
@@ -103,13 +115,15 @@ export default function FormationsScreen({ navigation }: any) {
             {isTeacher ? (
               <PrimaryButton title="🎥 Commencer le direct" onPress={() => navigation.navigate("Live", { slug: c.slug, host: true })} />
             ) : null}
+            {e && e.attendedToEnd && !e.certificateNo ? <PrimaryButton title="📝 Passer le test" onPress={() => navigation.navigate("Test", { slug: c.slug, title: c.title })} /> : null}
+            {e && e.certificateNo ? <PrimaryButton title="📄 Télécharger mon attestation" onPress={() => downloadCert(c.slug)} /> : null}
             {e ? (
               <Text style={styles.ok}>
                 ✓ Inscrite
                 {e.certificateNo ? ` · Attestation ${e.certificateNo}` : e.attendedToEnd ? " · Test disponible" : " · Test après le direct"}
               </Text>
             ) : (
-              <PrimaryButton title="Je m'inscris" onPress={() => enroll(c.slug)} />
+              <PrimaryButton title="Voir la formation et m'inscrire" onPress={() => navigation.navigate("Course", { course: c })} />
             )}
             <SourcesBlock sources={c.sources} />
           </Card>

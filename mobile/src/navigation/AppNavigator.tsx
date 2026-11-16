@@ -23,6 +23,8 @@ import ThreadScreen from "../screens/ThreadScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import ShareScreen from "../screens/ShareScreen";
 import AssistantScreen from "../screens/AssistantScreen";
+import CourseScreen from "../screens/CourseScreen";
+import TestScreen from "../screens/TestScreen";
 import LiveScreen from "../screens/LiveScreen";
 import FormationsScreen from "../screens/FormationsScreen";
 import RevenusScreen from "../screens/RevenusScreen";
@@ -126,6 +128,8 @@ export default function AppNavigator() {
           <>
             <RootStack.Screen name="Main" component={MainTabs} />
             <RootStack.Screen name="Assistant" component={AssistantScreen} options={{ headerShown: true, title: "Conseillère IA" }} />
+            <RootStack.Screen name="Course" component={CourseScreen} options={{ headerShown: true, title: "Formation" }} />
+            <RootStack.Screen name="Test" component={TestScreen} options={{ headerShown: true, title: "Test" }} />
             <RootStack.Screen name="Live" component={LiveScreen} options={{ headerShown: false }} />
             <RootStack.Screen name="Formations" component={FormationsScreen} options={{ headerShown: true, title: "Formations" }} />
             <RootStack.Screen name="Partager" component={ShareScreen} options={{ headerShown: true, title: "Inviter une amie" }} />

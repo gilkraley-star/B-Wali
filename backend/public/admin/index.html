@@ -66,9 +66,9 @@
     try {
       var res = await Promise.all([
         api("/admin/stats"), api("/admin/queue?status=" + state.filter), api("/admin/users"),
-        api("/admin/courses"), api("/admin/reports"), api("/admin/audit"), api("/admin/reported-users")
+        api("/admin/courses"), api("/admin/reports"), api("/admin/audit"), api("/admin/reported-users"), api("/admin/cert-templates")
       ]);
-      state.stats = res[0]; state.queue = res[1]; state.users = res[2]; state.courses = res[3]; state.reports = res[4]; state.audit = res[5]; state.reported = res[6];
+      state.stats = res[0]; state.queue = res[1]; state.users = res[2]; state.courses = res[3]; state.reports = res[4]; state.audit = res[5]; state.reported = res[6]; state.tpls = res[7];
     } catch(e){ if (token) flash(e.message, "err"); return; }
     render();
   }
@@ -90,7 +90,7 @@
     };
   }
 
-  var TABS = [["dash","Tableau de bord"],["queue","À valider"],["users","Comptes pro"],["courses","Formations"],["reports","Signalements"],["audit","Journal"]];
+  var TABS = [["dash","Tableau de bord"],["queue","À valider"],["users","Comptes pro"],["courses","Formations"],["certs","Attestations"],["reports","Signalements"],["audit","Journal"]];
 
   function render(){
     if (!token) return loginView();
@@ -98,7 +98,7 @@
     var html = '<header><h1><img src="logo.png" alt="" style="height:34px;vertical-align:middle;margin-right:10px">Bê Wali · Administration</h1><button id="out">Se déconnecter</button></header><nav>' +
       TABS.map(function(t){ return '<button data-t="'+t[0]+'" class="'+(state.tab===t[0]?'on':'')+'">'+t[1]+(t[0]==="queue"&&pending?' ('+pending+')':'')+'</button>'; }).join("") + '</nav><main>';
     if (state.msg) html += '<div class="msg '+state.msg.kind+'">'+esc(state.msg.text)+'</div>';
-    html += ({dash:dash, queue:queueView, users:usersView, courses:coursesView, reports:reportsView, audit:auditView}[state.tab])();
+    html += ({dash:dash, queue:queueView, users:usersView, courses:coursesView, certs:certsView, reports:reportsView, audit:auditView}[state.tab])();
     html += '</main>';
     app.innerHTML = html;
     document.getElementById("out").onclick = logout;
@@ -171,6 +171,29 @@
       }).join("") || '<div class="card">Aucune formation.</div>');
   }
 
+
+  var FLD = [["name","Nom de l'apprenante"],["birth","Naissance (date et lieu)"],["course","Titre de la formation"],["date","Date"],["number","N° d'attestation"]];
+  var FLD_DEF = {name:[50,46,30],birth:[50,53,14],course:[50,63,20],date:[30,72,12],number:[50,95,10]};
+  function certsView(){
+    var h = '<p><small>Prépare ici l\'attestation une seule fois : l\'image de fond, les signatures, le cachet. Le nom, la date et le lieu de naissance, le titre et le numéro sont écrits automatiquement pour chaque apprenante, à partir des informations qu\'elle a données à l\'inscription. Image de fond conseillée : paysage (format A4, ex. 2000 × 1414 px), sans le nom de l\'apprenante.</small></p>';
+    h += '<div class="card"><b>Nouveau modèle</b><div class="row" style="margin-top:8px"><input id="t_name" placeholder="Nom du modèle (ex. Attestation FAFECA)"><input type="file" id="t_bg" accept="image/*"><button id="t_go">Créer</button></div></div>';
+    (state.tpls || []).forEach(function(t){
+      var f = {}; try { f = JSON.parse(t.fieldsJson || "{}"); } catch(e){}
+      var sg = []; try { sg = JSON.parse(t.signersJson || "[]"); } catch(e){}
+      h += '<div class="card" data-tpl="'+t.id+'"><div class="row"><b class="grow">'+esc(t.name)+'</b><button class="s" data-prev="'+t.id+'">👁 Aperçu</button><button class="bad" data-deltpl="'+t.id+'">Supprimer</button></div>';
+      h += '<img src="'+esc(t.bgUrl)+'" style="max-width:260px;border:1px solid #ddd;border-radius:8px;margin:8px 0;display:block"><small>Remplacer le fond : </small><input type="file" data-bg="'+t.id+'" accept="image/*">';
+      h += '<p><b>Position des textes</b> <small>(en % de la page : gauche→droite, haut→bas ; taille en points)</small></p>';
+      FLD.forEach(function(fl){ var d = f[fl[0]] || {x:FLD_DEF[fl[0]][0]/100, y:FLD_DEF[fl[0]][1]/100, size:FLD_DEF[fl[0]][2]};
+        h += '<div class="row" style="margin:3px 0"><span style="width:200px">'+fl[1]+'</span> X <input type="number" data-fx="'+fl[0]+'" value="'+Math.round(d.x*100)+'" style="width:70px"> Y <input type="number" data-fy="'+fl[0]+'" value="'+Math.round(d.y*100)+'" style="width:70px"> Taille <input type="number" data-fs="'+fl[0]+'" value="'+d.size+'" style="width:70px"></div>'; });
+      h += '<p><b>Signatures et responsables</b> <small>(jusqu\'à 3 ; image de signature en PNG fond transparent, idéalement)</small></p>';
+      for (var i = 0; i < 3; i++){ var x = sg[i] || {};
+        h += '<div class="row" style="margin:3px 0"><input data-sn="'+i+'" value="'+esc(x.name||"")+'" placeholder="Nom du responsable" style="max-width:200px"><input data-st="'+i+'" value="'+esc(x.title||"")+'" placeholder="Fonction (ex. Directrice)" style="max-width:200px"><input type="file" data-sf="'+i+'" accept="image/*">'+(x.sigUrl?'<img src="'+esc(x.sigUrl)+'" style="height:34px">':'')+'<input type="hidden" data-su="'+i+'" value="'+esc(x.sigUrl||"")+'"></div>'; }
+      h += '<p><b>Cachet</b></p><div class="row"><input type="file" data-stamp="'+t.id+'" accept="image/*">'+(t.stampUrl?'<img src="'+esc(t.stampUrl)+'" style="height:50px">':'')+' X <input type="number" data-stx value="'+Math.round(t.stampX*100)+'" style="width:70px"> Y <input type="number" data-sty value="'+Math.round(t.stampY*100)+'" style="width:70px"> Taille <input type="number" data-stz value="'+Math.round(t.stampSize*100)+'" style="width:70px"></div>';
+      h += '<div class="row" style="margin-top:10px"><button data-savetpl="'+t.id+'">💾 Enregistrer le modèle</button></div></div>';
+    });
+    return h;
+  }
+
   var RS = {HAINE:"Message haineux",RACISME:"Racisme",HARCELEMENT:"Harcèlement",VIOLENCE:"Menaces / violence",SEXUEL:"Contenu sexuel",PROFIL_SUSPECT:"Profil suspect",ARNAQUE:"Arnaque",SPAM:"Spam",AUTRE:"Autre"};
   function reportsView(){
     var users = state.reported.map(function(u){
@@ -190,7 +213,7 @@
   }
 
   // --- redimensionne la photo avant envoi (max 640 px, JPEG) ---
-  function fileToDataUrl(file){
+  function fileToDataUrl(file, maxSide, mime){
     return new Promise(function(resolve, reject){
       var fr = new FileReader();
       fr.onerror = function(){ reject(new Error("Lecture de la photo impossible.")); };
@@ -198,10 +221,10 @@
         var img = new Image();
         img.onerror = function(){ reject(new Error("Image illisible.")); };
         img.onload = function(){
-          var max = 640, w = img.width, h = img.height, k = Math.min(1, max / Math.max(w, h));
+          var max = maxSide || 640, w = img.width, h = img.height, k = Math.min(1, max / Math.max(w, h));
           var c = document.createElement("canvas"); c.width = Math.round(w * k); c.height = Math.round(h * k);
           c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-          resolve(c.toDataURL("image/jpeg", 0.85));
+          resolve(c.toDataURL(mime || "image/jpeg", 0.88));
         };
         img.src = fr.result;
       };
@@ -245,6 +268,33 @@
     $$("[data-cert]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/users/"+b.dataset.cert, {method:"PATCH", body:{certified: b.dataset.v==="true"}}); await load(); }); });
     $$("[data-act]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/users/"+b.dataset.act, {method:"PATCH", body:{active: b.dataset.v==="true"}}); await load(); }); });
     $$("[data-rp]").forEach(function(b){ b.onclick = act(async function(){ if(!confirm("Générer un nouveau mot de passe provisoire ?")) return; var r = await api("/admin/users/"+b.dataset.rp+"/reset-password", {method:"POST"}); state.newPwd = { pwd: r.temporaryPassword, email: b.dataset.email }; state.tab = "users"; render(); }); });
+
+    $$("[data-tplsel]").forEach(function(sel){ sel.onchange = act(async function(){ await api("/admin/courses/"+sel.dataset.tplsel+"/template", {method:"PATCH", body:{certTemplateId: sel.value || null}}); flash("Modèle d'attestation choisi pour cette formation."); await load(); }); });
+    var tgo = document.getElementById("t_go");
+    if (tgo) tgo.onclick = act(async function(){
+      var f = document.getElementById("t_bg").files[0]; var nm = document.getElementById("t_name").value.trim();
+      if (!nm || !f) return flash("Donne un nom et choisis l'image de fond.", "err");
+      await api("/admin/cert-templates", {method:"POST", body:{name:nm, bg: await fileToDataUrl(f, 2000)}}); flash("Modèle créé. Règle maintenant les textes, signatures et cachet."); await load();
+    });
+    $$("[data-prev]").forEach(function(b){ b.onclick = act(async function(){
+      var r = await api("/admin/cert-templates/"+b.dataset.prev+"/preview", {method:"POST", body:{}});
+      var bin = atob(r.pdf), arr = new Uint8Array(bin.length); for (var i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+      window.open(URL.createObjectURL(new Blob([arr], {type:"application/pdf"})), "_blank");
+    }); });
+    $$("[data-deltpl]").forEach(function(b){ b.onclick = act(async function(){ if(!confirm("Supprimer ce modèle ?")) return; await api("/admin/cert-templates/"+b.dataset.deltpl, {method:"DELETE"}); await load(); }); });
+    $$("[data-savetpl]").forEach(function(b){ b.onclick = act(async function(){
+      var box = app.querySelector('[data-tpl="'+b.dataset.savetpl+'"]');
+      function q(sel){ return box.querySelector(sel); }
+      var fields = {}; ["name","birth","course","date","number"].forEach(function(k){ fields[k] = {x:(+q('[data-fx="'+k+'"]').value)/100, y:(+q('[data-fy="'+k+'"]').value)/100, size:+q('[data-fs="'+k+'"]').value}; });
+      var signers = [];
+      for (var i=0;i<3;i++){ var nm = q('[data-sn="'+i+'"]').value.trim(); if (!nm) continue;
+        var o = {name:nm, title:q('[data-st="'+i+'"]').value.trim()}; var fl = q('[data-sf="'+i+'"]').files[0];
+        if (fl) o.sig = await fileToDataUrl(fl, 600, "image/png"); else if (q('[data-su="'+i+'"]').value) o.sigUrl = q('[data-su="'+i+'"]').value; signers.push(o); }
+      var body = {fields:fields, signers:signers, stampX:(+q("[data-stx]").value)/100, stampY:(+q("[data-sty]").value)/100, stampSize:(+q("[data-stz]").value)/100};
+      var sf = q('[data-stamp]').files[0]; if (sf) body.stamp = await fileToDataUrl(sf, 600, "image/png");
+      var bf = q('[data-bg]').files[0]; if (bf) body.bg = await fileToDataUrl(bf, 2000);
+      await api("/admin/cert-templates/"+b.dataset.savetpl, {method:"PATCH", body:body}); flash("Modèle enregistré. Clique sur « Aperçu » pour vérifier."); await load();
+    }); });
     function dt(id){ var el = app.querySelector('[data-dt="'+id+'"]'); if (!el || !el.value) throw new Error("Choisis d'abord une date et une heure."); return new Date(el.value).toISOString(); }
     $$("[data-sched]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/courses/"+b.dataset.sched+"/schedule", {method:"PATCH", body:{startsAt: dt(b.dataset.sched), state:"OUVERT"}}); flash("Date programmée."); await load(); }); });
     $$("[data-post]").forEach(function(b){ b.onclick = act(async function(){ var why = prompt("Motif interne (non visible des filles) :") || ""; await api("/admin/courses/"+b.dataset.post+"/schedule", {method:"PATCH", body:{postponedTo: dt(b.dataset.post), state:"REPORTEE", internalReason: why}}); flash("Session reportée. Les filles verront : formatrice indisponible + nouvelle date."); await load(); }); });

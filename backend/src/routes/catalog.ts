@@ -1,3 +1,5 @@
+import { renderCertificate, frDate } from "../utils/certificate";
+import { z } from "zod";
 import { Router } from "express";
 import { prisma } from "../db";
 import { requireAuth, AuthRequest } from "../middleware/auth";
@@ -41,10 +43,19 @@ router.get("/courses", async (_req, res) => {
 router.post("/courses/:slug/enroll", requireAuth, async (req: AuthRequest, res) => {
   const course = await prisma.course.findFirst({ where: { slug: req.params.slug, status: "PUBLIE" } });
   if (!course) return res.status(404).json({ error: "Formation introuvable." });
+  // Vraies informations, utilisées ensuite sur l'attestation
+  const p = z.object({
+    fullName: z.string().trim().min(5, "Écris ton nom complet (nom et prénoms).").max(100),
+    birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date de naissance invalide."),
+    birthPlace: z.string().trim().min(2, "Écris ton lieu de naissance.").max(80),
+  }).safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: p.error.issues[0]?.message || "Informations incomplètes." });
+  const bd = new Date(p.data.birthDate);
+  if (isNaN(bd.getTime()) || bd > new Date() || bd.getFullYear() < 1940) return res.status(400).json({ error: "Date de naissance invalide." });
   const e = await prisma.enrollment.upsert({
     where: { userId_courseId: { userId: req.userId!, courseId: course.id } },
-    create: { userId: req.userId!, courseId: course.id },
-    update: {},
+    create: { userId: req.userId!, courseId: course.id, ...p.data },
+    update: { ...p.data },
   });
   res.status(201).json({ enrolled: true, enrollmentId: e.id });
 });
@@ -59,6 +70,7 @@ router.get("/my-enrollments", requireAuth, async (req: AuthRequest, res) => {
       attendedToEnd: e.attendedToEnd,
       score: e.score,
       certificateNo: e.certificateNo,
+      fullName: e.fullName,
     }))
   );
 });
@@ -116,6 +128,21 @@ router.post("/courses/:slug/qcm", requireAuth, async (req: AuthRequest, res) => 
   }
   await prisma.enrollment.update({ where: { id: e.id }, data: { score, certificateNo: passed ? certificateNo : e.certificateNo } });
   res.json({ score, total: qcm.length, passed, certificateNo: passed ? certificateNo : null });
+});
+
+// GET /api/catalog/courses/:slug/certificate — l'attestation PDF, remplie avec les infos de l'inscription
+router.get("/courses/:slug/certificate", requireAuth, async (req: AuthRequest, res) => {
+  const course = await prisma.course.findFirst({ where: { slug: req.params.slug } });
+  if (!course) return res.status(404).json({ error: "Formation introuvable." });
+  const e = await prisma.enrollment.findUnique({ where: { userId_courseId: { userId: req.userId!, courseId: course.id } } });
+  if (!e || !e.certificateNo) return res.status(403).json({ error: "Tu n'as pas encore ton attestation : suis le direct jusqu'au bout puis réussis le test." });
+  const tpl = course.certTemplateId ? await prisma.certTemplate.findUnique({ where: { id: course.certTemplateId } }) : null;
+  if (!tpl) return res.status(409).json({ error: "Ton attestation est en préparation. Reviens bientôt !" });
+  const pdf = await renderCertificate(tpl, {
+    fullName: e.fullName || "—", birthDate: e.birthDate || "", birthPlace: e.birthPlace || "—",
+    courseTitle: course.title, dateText: "Fait à Bangui, le " + frDate((course.liveEndedAt || e.createdAt).toISOString().slice(0, 10)), number: e.certificateNo,
+  });
+  res.json({ pdf: Buffer.from(pdf).toString("base64"), fileName: `Attestation-${e.certificateNo}.pdf` });
 });
 
 // GET /api/catalog/income — activités génératrices de revenus publiées

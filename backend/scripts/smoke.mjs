@@ -114,7 +114,11 @@ const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJA
   check("formations publiées", r.status === 200 && r.data.length >= 5);
   const slug = r.data[0].slug;
   r = await call("POST", `/catalog/courses/${slug}/enroll`, { token: fille });
-  check("inscription à une formation", r.status === 201);
+  check("inscription refusée sans nom, date et lieu de naissance", r.status === 400);
+  r = await call("POST", `/catalog/courses/${slug}/enroll`, { token: fille, body: { fullName: "Marie Test Ngaïssona", birthDate: "2008-03-14", birthPlace: "Bangui" } });
+  check("inscription à une formation avec les vraies informations", r.status === 201);
+  r = await call("GET", `/catalog/courses/${slug}/certificate`, { token: fille });
+  check("pas d'attestation avant le test", r.status === 403);
   r = await call("GET", `/catalog/courses/${slug}/qcm`, { token: fille });
   check("test verrouillé tant que la fille n'a pas suivi le direct jusqu'au bout", r.status === 403);
 

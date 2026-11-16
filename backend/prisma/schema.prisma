@@ -234,6 +234,7 @@ model Course {
   sourcesJson String   @default("[]")
   status      String   @default("A_VALIDER")
   reviewNote  String?
+  certTemplateId String? // modèle d'attestation utilisé pour cette formation
   authorId    String?
   author      User?    @relation("CourseAuthor", fields: [authorId], references: [id])
   createdAt   DateTime @default(now())
@@ -251,6 +252,9 @@ model Enrollment {
   lastBeatAt  DateTime?
   score      Int?
   certificateNo String?
+  fullName   String?  // vraies informations pour l'attestation, demandées à l'inscription
+  birthDate  String?  // AAAA-MM-JJ
+  birthPlace String?
   createdAt  DateTime @default(now())
 
   @@unique([userId, courseId])
@@ -351,4 +355,18 @@ model GameLevel {
   updatedAt DateTime @default(now()) @updatedAt
 
   @@unique([userId, game, level])
+}
+
+// Modèle d'attestation préparé dans l'administration : fond + positions des champs + signatures + cachet.
+model CertTemplate {
+  id          String   @id @default(uuid())
+  name        String
+  bgUrl       String   // image de fond (paysage A4)
+  stampUrl    String?
+  stampX      Float    @default(0.80) // centre, en fraction de la page
+  stampY      Float    @default(0.78)
+  stampSize   Float    @default(0.16) // largeur, en fraction de la page
+  fieldsJson  String   @default("{}")  // {name:{x,y,size}, birth:{..}, course:{..}, date:{..}, number:{..}}
+  signersJson String   @default("[]")  // [{name,title,sigUrl}]
+  createdAt   DateTime @default(now())
 }
