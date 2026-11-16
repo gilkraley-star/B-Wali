@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
-import { addLocalPeriod, estimateLocal, getCycleLen, loadLocalPeriods, LocalPeriod, setCycleLen, syncCycle } from "../storage/localCycle";
+import { addLocalPeriod, endPeriodOn, estimateLocal, getCycleLen, getPeriodLen, loadLocalPeriods, LocalPeriod, removePeriod, savePeriod, setCycleLen, setPeriodLen, syncCycle } from "../storage/localCycle";
 import { colors } from "../theme/colors";
 import { PrimaryButton } from "../theme/ui";
 import { FadeUp } from "../components/anim";
@@ -21,6 +21,8 @@ const long = (d: Date) => `${d.getDate()} ${MONTHS[d.getMonth()].toLowerCase()}`
 export default function CycleScreen({ navigation }: any) {
   const [periods, setPeriods] = useState<LocalPeriod[]>([]);
   const [len, setLen] = useState(28);
+  const [plen, setPlen] = useState(5);
+  const [dayMenu, setDayMenu] = useState<Date | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [mode, setMode] = useState<"ask" | "known" | "learning">("ask");
   const [first, setFirst] = useState({ d: "", m: "", y: "" });
@@ -28,8 +30,8 @@ export default function CycleScreen({ navigation }: any) {
   const [month, setMonth] = useState(() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), 1); });
 
   const load = useCallback(async () => {
-    const [local, l] = await Promise.all([loadLocalPeriods(), getCycleLen()]);
-    setPeriods(local); setLen(l); setLenText(String(l)); setLoaded(true);
+    const [local, l, pl] = await Promise.all([loadLocalPeriods(), getCycleLen(), getPeriodLen()]);
+    setPeriods(local); setLen(l); setPlen(pl); setLenText(String(l)); setLoaded(true);
     const synced = await syncCycle();
     if (synced) setPeriods(synced);
     scheduleCycleReminders();
@@ -42,7 +44,7 @@ export default function CycleScreen({ navigation }: any) {
 
   const marks = useMemo(() => {
     const period = new Set<string>(), fertile = new Set<string>(), risk = new Set<string>(), predicted = new Set<string>();
-    periods.forEach((p) => { const s = parse(p.startDate); const n = p.endDate ? Math.max(1, Math.round((parse(p.endDate).getTime() - s.getTime()) / DAY) + 1) : 5; for (let i = 0; i < n; i++) period.add(key(addDays(s, i))); });
+    periods.forEach((p) => { const s = parse(p.startDate); const n = p.endDate ? Math.max(1, Math.round((parse(p.endDate).getTime() - s.getTime()) / DAY) + 1) : plen; for (let i = 0; i < n; i++) period.add(key(addDays(s, i))); });
     if (next) {
       predicted.add(key(next));
       for (let c = 0; c < 3; c++) { // cycles à venir
@@ -55,14 +57,15 @@ export default function CycleScreen({ navigation }: any) {
       void last;
     }
     return { period, fertile, risk, predicted };
-  }, [periods, next?.getTime(), cycleLen]);
+  }, [periods, next?.getTime(), cycleLen, plen]);
 
   async function saveStart(dateKey: string) {
     const list = await addLocalPeriod(dateKey); setPeriods(list); load();
   }
-  function onDay(d: Date) {
-    Alert.alert("Mes règles", `Elles ont commencé le ${d.getDate()} ${MONTHS[d.getMonth()].toLowerCase()} ?`, [{ text: "Non", style: "cancel" }, { text: "Oui, enregistrer", onPress: () => saveStart(key(d)) }]);
-  }
+  const refresh = (list: LocalPeriod[]) => { setPeriods(list); setDayMenu(null); syncCycle().then((x) => x && setPeriods(x)); scheduleCycleReminders(); };
+  function onDay(d: Date) { if (d.getTime() > Date.now() + DAY) return Alert.alert("Pas encore", "Tu ne peux noter que les jours passés ou aujourd'hui."); setDayMenu(d); }
+  const changeLen = async (n: number) => { const v = Math.max(15, Math.min(60, n)); setLen(v); setLenText(String(v)); await setCycleLen(v); scheduleCycleReminders(); };
+  const changePlen = async (n: number) => { const v = Math.max(2, Math.min(10, n)); setPlen(v); await setPeriodLen(v); };
 
   if (!loaded) return <View style={s.c} />;
   const hasData = periods.length > 0;
@@ -123,6 +126,18 @@ export default function CycleScreen({ navigation }: any) {
   const rows: (Date | null)[][] = []; for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
   const daysTo = next ? Math.round((next.getTime() - new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) / DAY) : null;
   const ov = next ? addDays(next, -14) : null; const fS = ov ? addDays(ov, -5) : null; const fE = ov ? addDays(ov, 1) : null;
+  const lastP = periods[0] ? parse(periods[0].startDate) : null;
+  const todayD = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const cycleDay = lastP ? Math.round((todayD.getTime() - lastP.getTime()) / DAY) + 1 : 0;
+  const inPeriod = !!periods[0] && !periods[0].endDate && cycleDay >= 1 && cycleDay <= 12;
+  const ovDay = cycleLen - 14;
+  const phase = !lastP || cycleDay < 1 ? { label: "Aujourd'hui", title: "Dis-nous quand elles ont commencé", text: "Touche le bouton quand tes règles arrivent : Wali apprend ton cycle." }
+    : inPeriod || cycleDay <= plen ? { label: `Jour ${cycleDay} de ton cycle`, title: "Tes règles 🩸", text: "Bois de l'eau, repose-toi si tu as mal au ventre. Une bouillotte tiède aide. Touche « finies » quand elles s'arrêtent." }
+    : cycleDay > cycleLen + 3 ? { label: `Jour ${cycleDay} de ton cycle`, title: "Tes règles sont en retard", text: "Un retard arrive (stress, fatigue). Si tu as eu un rapport sans protection, fais un test ou parle à une sage-femme." }
+    : cycleDay >= ovDay - 5 && cycleDay <= ovDay + 1 ? { label: `Jour ${cycleDay} de ton cycle`, title: "Jours fertiles 💗", text: "Tu peux tomber enceinte ces jours-ci. Protège-toi si tu ne veux pas de bébé." }
+    : cycleDay < ovDay - 5 ? { label: `Jour ${cycleDay} de ton cycle`, title: "Après tes règles 🌱", text: "Beaucoup de filles ont plus d'énergie à ce moment." }
+    : { label: `Jour ${cycleDay} de ton cycle`, title: "Avant tes prochaines règles 🌙", text: "Fatigue, ventre gonflé ou humeur changeante sont possibles. C'est normal." };
+  const refresh2 = (pr: Promise<LocalPeriod[]>) => pr.then(refresh);
   const inFertile = fS && fE && today >= fS && today <= addDays(fE, 1);
 
   return (
@@ -154,6 +169,19 @@ export default function CycleScreen({ navigation }: any) {
         </View>
       </FadeUp>
 
+      <FadeUp delay={120}>
+        <View style={s.card}>
+          <Text style={s.cardLab}>{phase.label}</Text>
+          <Text style={s.big}>{phase.title}</Text>
+          <Text style={s.small}>{phase.text}</Text>
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+            <TouchableOpacity style={[s.cta, { flex: 1 }]} onPress={() => (inPeriod ? refresh2(endPeriodOn(todayK)) : refresh2(savePeriod(todayK)))} activeOpacity={0.85}>
+              <Text style={s.ctaT}>{inPeriod ? "🏁 Mes règles sont finies" : "🩸 Mes règles ont commencé"}</Text></TouchableOpacity>
+            <TouchableOpacity style={s.cta2} onPress={() => setDayMenu(new Date())} activeOpacity={0.85}><Text style={s.cta2T}>Autre jour</Text></TouchableOpacity>
+          </View>
+        </View>
+      </FadeUp>
+
       <FadeUp delay={160}>
         <View style={s.card}>
           <View style={s.rowB}><Text style={s.cardLab}>Prochaines règles estimées</Text>{daysTo !== null ? <View style={s.pill}><Text style={s.pillT}>{daysTo <= 0 ? "bientôt" : `dans ${daysTo} j`}</Text></View> : null}</View>
@@ -171,11 +199,41 @@ export default function CycleScreen({ navigation }: any) {
           </LinearGradient>
         </FadeUp>) : null}
 
+      <View style={s.card}>
+        <Text style={s.cardLab}>Mes réglages</Text>
+        {([["Durée de mon cycle", len, changeLen, "jours"], ["Durée de mes règles", plen, changePlen, "jours"]] as const).map(([lab, val, fn, u]) => (
+          <View key={lab} style={[s.rowB, { marginTop: 12 }]}>
+            <Text style={s.setL}>{lab}</Text>
+            <View style={s.step}><TouchableOpacity style={s.stepB} onPress={() => fn(val - 1)}><Text style={s.stepT}>−</Text></TouchableOpacity><Text style={s.stepV}>{val} {u}</Text><TouchableOpacity style={s.stepB} onPress={() => fn(val + 1)}><Text style={s.stepT}>+</Text></TouchableOpacity></View>
+          </View>))}
+        {est.averageCycleLength && periods.length > 1 ? <Text style={s.small}>D'après tes dates, ton cycle dure en moyenne {est.averageCycleLength} jours : la prochaine date utilise ce chiffre.</Text> : null}
+      </View>
+
+      <View style={s.card}>
+        <Text style={s.cardLab}>Mes dernières règles</Text>
+        {periods.slice(0, 6).map((p) => { const st = parse(p.startDate); const nb = p.endDate ? Math.round((parse(p.endDate).getTime() - st.getTime()) / DAY) + 1 : null; return (
+          <View key={p.id} style={[s.rowB, { marginTop: 10 }]}>
+            <Text style={s.setL}>{long(st)}{p.endDate ? ` → ${long(parse(p.endDate))}` : " → en cours"}{nb ? ` · ${nb} j` : ""}</Text>
+            <TouchableOpacity hitSlop={10} onPress={() => Alert.alert("Retirer ces règles ?", "Elles seront effacées de ton calendrier.", [{ text: "Garder", style: "cancel" }, { text: "Retirer", style: "destructive", onPress: () => refresh2(removePeriod(p.id)) }])}><Text style={{ color: "#C23B3B", fontSize: 16 }}>✕</Text></TouchableOpacity>
+          </View>); })}
+      </View>
+
+      <Modal visible={!!dayMenu} transparent animationType="fade" onRequestClose={() => setDayMenu(null)}>
+        <TouchableOpacity style={s.back2} activeOpacity={1} onPress={() => setDayMenu(null)}>
+          <View style={s.sheet}>
+            <Text style={s.sheetT}>{dayMenu ? `${dayMenu.getDate()} ${MONTHS[dayMenu.getMonth()].toLowerCase()} ${dayMenu.getFullYear()}` : ""}</Text>
+            <TouchableOpacity style={s.opt} onPress={() => dayMenu && refresh2(savePeriod(key(dayMenu)))}><Text style={s.optT}>🩸 Mes règles ont commencé ce jour</Text></TouchableOpacity>
+            <TouchableOpacity style={s.opt} onPress={() => dayMenu && refresh2(endPeriodOn(key(dayMenu)))}><Text style={s.optT}>🏁 Mes règles se sont terminées ce jour</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => setDayMenu(null)}><Text style={s.back}>Fermer</Text></TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
         <TouchableOpacity style={s.act} onPress={() => navigation.navigate("Symptoms")}><Text style={s.actT}>🤒 Ajouter un symptôme</Text></TouchableOpacity>
         <TouchableOpacity style={s.act} onPress={() => navigation.navigate("Reminders")}><Text style={s.actT}>⏰ Ajouter un rappel</Text></TouchableOpacity>
       </View>
-      <Text style={s.small2}>Touche un jour du calendrier pour noter que tes règles ont commencé ce jour-là.</Text>
+      <Text style={s.small2}>Touche un jour du calendrier pour noter le début ou la fin de tes règles.</Text>
     </Shell>
   );
 }
@@ -193,6 +251,12 @@ function Shell({ children, navigation, scroll }: { children: React.ReactNode; na
 }
 
 const s = StyleSheet.create({
+  cta: { backgroundColor: "#FF5470", borderRadius: 999, paddingVertical: 13, alignItems: "center" }, ctaT: { color: "#fff", fontFamily: "Inter_700Bold", fontSize: 13 },
+  cta2: { borderWidth: 1.5, borderColor: "#F3C9CF", borderRadius: 999, paddingVertical: 13, paddingHorizontal: 16, alignItems: "center" }, cta2T: { color: "#FF5470", fontFamily: "Inter_700Bold", fontSize: 13 },
+  setL: { color: "#3B1D33", fontFamily: "Inter_500Medium", fontSize: 13, flexShrink: 1 },
+  step: { flexDirection: "row", alignItems: "center", gap: 8 }, stepB: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#FFE9EE", alignItems: "center", justifyContent: "center" }, stepT: { color: "#FF5470", fontSize: 20, lineHeight: 22, fontFamily: "Inter_700Bold" }, stepV: { minWidth: 70, textAlign: "center", fontFamily: "Inter_700Bold", color: "#3B1D33", fontSize: 13 },
+  back2: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }, sheet: { backgroundColor: "#FFF6F0", borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 22 }, sheetT: { fontFamily: "Poppins_700Bold", fontSize: 17, color: "#3B1D33", textAlign: "center", marginBottom: 14 },
+  opt: { backgroundColor: "#fff", borderRadius: 999, paddingVertical: 15, alignItems: "center", marginBottom: 10 }, optT: { fontFamily: "Inter_700Bold", color: "#3B1D33", fontSize: 14 },
   c: { flex: 1, backgroundColor: "#FFF6F0", overflow: "hidden" }, blob: { position: "absolute" },
   h1: { fontFamily: "Poppins_800ExtraBold", fontSize: 22, color: "#3B1D33" }, h1c: { fontFamily: "Poppins_800ExtraBold", fontSize: 21, color: "#3B1D33", textAlign: "center", marginTop: 14 },
   p: { color: "#8C7A86", lineHeight: 21, marginTop: 6, fontFamily: "Inter_400Regular" }, pc: { color: "#3B1D33", lineHeight: 22, textAlign: "center", marginTop: 12, fontFamily: "Inter_400Regular" },

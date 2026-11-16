@@ -9,6 +9,11 @@ const LEN_KEY = "bewali.cycle.len";
 export async function getCycleLen(): Promise<number> { const v = parseInt((await AsyncStorage.getItem(LEN_KEY)) || "", 10); return v >= 15 && v <= 60 ? v : 28; }
 export async function setCycleLen(n: number) { await AsyncStorage.setItem(LEN_KEY, String(n)); }
 
+const PLEN_KEY = "bewali.cycle.plen";
+const DEL_KEY = "bewali.cycle.deleted";
+export async function getPeriodLen(): Promise<number> { const v = parseInt((await AsyncStorage.getItem(PLEN_KEY)) || "", 10); return v >= 2 && v <= 10 ? v : 5; }
+export async function setPeriodLen(n: number) { await AsyncStorage.setItem(PLEN_KEY, String(n)); }
+
 export interface LocalPeriod {
   id: string;
   startDate: string; // AAAA-MM-JJ
@@ -45,6 +50,29 @@ export async function addLocalPeriod(startDate: string): Promise<LocalPeriod[]> 
   return loadLocalPeriods();
 }
 
+/** Ajoute ou modifie une période (début et, si on la connaît, fin). Marche hors ligne. */
+export async function savePeriod(startDate: string, endDate?: string | null): Promise<LocalPeriod[]> {
+  const list = await loadLocalPeriods();
+  const ex = list.find((p) => p.startDate === startDate);
+  if (ex) { if (endDate !== undefined) ex.endDate = endDate; ex.pending = true; }
+  else list.push({ id: `local-${Date.now()}`, startDate, endDate: endDate ?? null, pending: true });
+  await save(list);
+  return loadLocalPeriods();
+}
+/** Note la fin des règles : sur la période qui a commencé avant ce jour (la plus récente). */
+export async function endPeriodOn(endDate: string): Promise<LocalPeriod[]> {
+  const list = await loadLocalPeriods();
+  const p = list.find((x) => x.startDate <= endDate);
+  if (p) { p.endDate = endDate; p.pending = true; await save(list); }
+  return loadLocalPeriods();
+}
+export async function removePeriod(id: string): Promise<LocalPeriod[]> {
+  const list = (await loadLocalPeriods()).filter((p) => p.id !== id);
+  await save(list);
+  if (!id.startsWith("local-")) { const d = JSON.parse((await AsyncStorage.getItem(DEL_KEY)) || "[]"); d.push(id); await AsyncStorage.setItem(DEL_KEY, JSON.stringify(d)); }
+  return loadLocalPeriods();
+}
+
 /** Estimation calculée sur le téléphone, même règle que le serveur (moyenne des derniers cycles). */
 export function estimateLocal(periods: LocalPeriod[], defaultLen = 28): LocalEstimate {
   const recent = [...periods].sort((a, b) => b.startDate.localeCompare(a.startDate)).slice(0, 6);
@@ -67,8 +95,13 @@ export function estimateLocal(periods: LocalPeriod[], defaultLen = 28): LocalEst
 export async function syncCycle(): Promise<LocalPeriod[] | null> {
   const local = await loadLocalPeriods();
   try {
+    const dels: string[] = JSON.parse((await AsyncStorage.getItem(DEL_KEY)) || "[]");
+    for (const id of dels) { try { await apiRequest("/cycle/periods/" + id, { method: "DELETE", silent: true }); } catch (e: any) { if (e?.status === 0) throw e; } }
+    await AsyncStorage.removeItem(DEL_KEY);
     for (const p of local.filter((x) => x.pending)) {
-      await apiRequest("/cycle/periods", { method: "POST", body: { startDate: p.startDate } });
+      const body: any = { startDate: p.startDate }; if (p.endDate) body.endDate = p.endDate;
+      if (p.id.startsWith("local-")) await apiRequest("/cycle/periods", { method: "POST", body });
+      else await apiRequest("/cycle/periods/" + p.id, { method: "PATCH", body });
     }
     const server = await apiRequest<{ id: string; startDate: string; endDate?: string | null }[]>("/cycle/periods");
     const merged: LocalPeriod[] = server.map((s) => ({

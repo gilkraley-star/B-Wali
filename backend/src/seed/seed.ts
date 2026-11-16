@@ -165,9 +165,13 @@ async function main() {
       { slug: "confiance-en-soi", titleFr: "Confiance en soi" }, { slug: "stress-tristesse", titleFr: "Stress, tristesse, anxiété" }, { slug: "famille-amis", titleFr: "Famille et amitiés" }, { slug: "solitude", titleFr: "Me sentir seule" } ] },
     { slug: "t-avenir", titleFr: "Avenir et argent", icon: "💼", subs: [
       { slug: "mon-avenir", titleFr: "Mon avenir" }, { slug: "petit-commerce", titleFr: "Petit commerce et revenus" }, { slug: "metiers", titleFr: "Métiers et formations" } ] },
+    { slug: "t-religion", titleFr: "Religion et foi", icon: "🙏", subs: [
+      { slug: "foi-quotidien", titleFr: "Foi et vie de tous les jours" }, { slug: "questions-religion", titleFr: "Mes questions sur la religion" }, { slug: "respect-differences", titleFr: "Respect des croyances de chacune" }, { slug: "priere-soutien", titleFr: "Prière et soutien" } ] },
     { slug: "t-temoignages", titleFr: "Témoignages", icon: "✨", subs: [ { slug: "temoignages", titleFr: "Témoignages" }, { slug: "reussites", titleFr: "Mes réussites" } ] },
   ];
-  for (let ti = 0; ti < tree.length; ti++) {
+  // Les thèmes sont semés une seule fois : ensuite l'équipe les gère dans l'admin (ajout, renommage, suppression).
+  const alreadyOrganised = (await prisma.forumCategory.count({ where: { parentId: { not: null } } })) > 0;
+  for (let ti = 0; ti < (alreadyOrganised ? 0 : tree.length); ti++) {
     const th = tree[ti];
     const parent = await prisma.forumCategory.upsert({ where: { slug: th.slug }, create: { slug: th.slug, titleFr: th.titleFr, icon: th.icon, sort: ti }, update: { titleFr: th.titleFr, icon: th.icon, sort: ti, parentId: null } });
     for (let si = 0; si < th.subs.length; si++) {

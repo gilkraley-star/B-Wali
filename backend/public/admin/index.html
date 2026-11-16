@@ -66,9 +66,9 @@
     try {
       var res = await Promise.all([
         api("/admin/stats"), api("/admin/queue?status=" + state.filter), api("/admin/users"),
-        api("/admin/courses"), api("/admin/reports"), api("/admin/audit"), api("/admin/reported-users"), api("/admin/cert-templates"), api("/admin/announcements")
+        api("/admin/courses"), api("/admin/reports"), api("/admin/audit"), api("/admin/reported-users"), api("/admin/cert-templates"), api("/admin/announcements"), api("/admin/forum-categories")
       ]);
-      state.stats = res[0]; state.queue = res[1]; state.users = res[2]; state.courses = res[3]; state.reports = res[4]; state.audit = res[5]; state.reported = res[6]; state.tpls = res[7]; state.anns = res[8];
+      state.stats = res[0]; state.queue = res[1]; state.users = res[2]; state.courses = res[3]; state.reports = res[4]; state.audit = res[5]; state.reported = res[6]; state.tpls = res[7]; state.anns = res[8]; state.fcats = res[9];
     } catch(e){ if (token) flash(e.message, "err"); return; }
     render();
   }
@@ -90,7 +90,7 @@
     };
   }
 
-  var TABS = [["dash","Tableau de bord"],["queue","À valider"],["users","Comptes pro"],["courses","Formations"],["certs","Attestations"],["ann","Annonces"],["reports","Signalements"],["audit","Journal"]];
+  var TABS = [["dash","Tableau de bord"],["queue","À valider"],["users","Comptes pro"],["courses","Formations"],["forum","Entre Nous"],["certs","Attestations"],["ann","Annonces"],["reports","Signalements"],["audit","Journal"]];
 
   function render(){
     if (!token) return loginView();
@@ -98,7 +98,7 @@
     var html = '<header><h1><img src="logo.png" alt="" style="height:34px;vertical-align:middle;margin-right:10px">Wali · Administration</h1><button id="out">Se déconnecter</button></header><nav>' +
       TABS.map(function(t){ return '<button data-t="'+t[0]+'" class="'+(state.tab===t[0]?'on':'')+'">'+t[1]+(t[0]==="queue"&&pending?' ('+pending+')':'')+'</button>'; }).join("") + '</nav><main>';
     if (state.msg) html += '<div class="msg '+state.msg.kind+'">'+esc(state.msg.text)+'</div>';
-    html += ({dash:dash, queue:queueView, users:usersView, courses:coursesView, certs:certsView, ann:annView, reports:reportsView, audit:auditView}[state.tab])();
+    html += ({dash:dash, queue:queueView, users:usersView, courses:coursesView, forum:forumView, certs:certsView, ann:annView, reports:reportsView, audit:auditView}[state.tab])();
     html += '</main>';
     app.innerHTML = html;
     document.getElementById("out").onclick = logout;
@@ -160,6 +160,19 @@
         '<button class="s" data-act="'+u.id+'" data-v="'+(!u.active)+'">'+(u.active?'Désactiver':'Réactiver')+'</button>' +
         '<button class="s" data-rp="'+u.id+'" data-email="'+esc(u.email)+'">Nouveau mot de passe</button></div></div>';
     }).join("") || '<div class="card">Aucun compte professionnel pour le moment.</div>';
+    return h;
+  }
+
+  function forumView(){
+    var cats = state.fcats || [];
+    var parents = cats.filter(function(c){ return !c.parentId; });
+    var h = '<p><small>Les thèmes que voient les filles dans « Entre Nous ». Un thème général a une icône et contient des sous-thèmes où elles écrivent. Un thème qui contient déjà des messages ne peut pas être supprimé (renomme-le).</small></p>' +
+      '<div class="card"><b>➕ Nouveau thème général</b><div class="row"><input id="fc_icon" placeholder="🙏" style="max-width:70px"><input class="grow" id="fc_title" placeholder="Ex. Religion et foi"><button class="p" id="fc_add">Ajouter</button></div></div>';
+    parents.forEach(function(p){
+      h += '<div class="card"><div class="row"><span style="font-size:22px">'+esc(p.icon||"💬")+'</span><b class="grow">'+esc(p.titleFr)+'</b><button class="s" data-fren="'+p.id+'">Renommer</button><button class="bad" data-frdel="'+p.id+'">Supprimer</button></div>';
+      cats.filter(function(c){ return c.parentId === p.id; }).forEach(function(c){ h += '<div class="row" style="margin:6px 0 0 26px"><span class="grow">'+esc(c.titleFr)+' <small>('+c.posts+' msg)</small></span><button class="s" data-fren="'+c.id+'">Renommer</button><button class="bad" data-frdel="'+c.id+'">Supprimer</button></div>'; });
+      h += '<div class="row" style="margin:10px 0 0 26px"><input class="grow" data-subin="'+p.id+'" placeholder="Nouveau sous-thème…"><button class="p" data-subadd="'+p.id+'">Ajouter</button></div></div>';
+    });
     return h;
   }
 
@@ -338,6 +351,11 @@
     $$("[data-annact]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/announcements/"+b.dataset.annact, {method:"PATCH", body:{active:b.dataset.v==="true"}}); await load(); }); });
     $$("[data-anndel]").forEach(function(b){ b.onclick = act(async function(){ if(!confirm("Supprimer cette annonce ?")) return; await api("/admin/announcements/"+b.dataset.anndel, {method:"DELETE"}); await load(); }); });
     function dt(id){ var el = app.querySelector('[data-dt="'+id+'"]'); if (!el || !el.value) throw new Error("Choisis d'abord une date et une heure."); return new Date(el.value).toISOString(); }
+    var fa = document.getElementById("fc_add");
+    if (fa) fa.onclick = act(async function(){ await api("/admin/forum-categories", { method:"POST", body:{ titleFr: v("fc_title"), icon: v("fc_icon") || undefined } }); await load(); flash("Thème ajouté."); });
+    $$("[data-subadd]").forEach(function(b){ b.onclick = act(async function(){ var i = document.querySelector('[data-subin="'+b.dataset.subadd+'"]'); await api("/admin/forum-categories", { method:"POST", body:{ titleFr: i.value, parentId: b.dataset.subadd } }); await load(); flash("Sous-thème ajouté."); }); });
+    $$("[data-fren]").forEach(function(b){ b.onclick = act(async function(){ var n = prompt("Nouveau nom :"); if (!n) return; await api("/admin/forum-categories/"+b.dataset.fren, { method:"PATCH", body:{ titleFr: n } }); await load(); flash("Renommé."); }); });
+    $$("[data-frdel]").forEach(function(b){ b.onclick = act(async function(){ if (!confirm("Supprimer ce thème ?")) return; await api("/admin/forum-categories/"+b.dataset.frdel, { method:"DELETE" }); await load(); flash("Supprimé."); }); });
     var cg = document.getElementById("c_go");
     if (cg) {
       document.getElementById("c_trainer").onchange = function(){ document.getElementById("c_newtr").style.display = this.value === "__new" ? "block" : "none"; };

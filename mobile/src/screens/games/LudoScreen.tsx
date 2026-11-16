@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { play as snd } from "../../games/sounds";
-import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Animated, Easing, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colors, spacing } from "../../theme/colors";
 import { COLORS, Color, HEX, LIGHT, Positions, SAFE, TRACK, applyMove, botChoose, coord, emptyPositions, movable } from "../../games/ludo";
@@ -8,6 +8,29 @@ import { submitBotGame } from "../../games/gamesStore";
 
 const STYLES = [["♟️", "Classique"], ["👧", "Fille"], ["👑", "Couronne"], ["🌸", "Fleur"]];
 const NAMES: Record<Color, string> = { Y: "Toi", G: "Grâce_B", R: "Nadia_22", B: "Fleur_de_lune" };
+const PIPS: Record<number, number[]> = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+// Dé réel : faces à points, il roule et rebondit pendant le lancer.
+function Die({ value, rolling, size = 70 }: { value: number; rolling: boolean; size?: number }) {
+  const rot = useRef(new Animated.Value(0)).current;
+  const hop = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (rolling) {
+      rot.setValue(0); hop.setValue(0);
+      Animated.parallel([
+        Animated.timing(rot, { toValue: 1, duration: 800, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.sequence([Animated.timing(hop, { toValue: 1, duration: 260, useNativeDriver: true }), Animated.timing(hop, { toValue: 0.4, duration: 220, useNativeDriver: true }), Animated.timing(hop, { toValue: 0, duration: 320, useNativeDriver: true })]),
+      ]).start();
+    }
+  }, [rolling]);
+  const pips = PIPS[value] || [];
+  return (
+    <Animated.View style={{ width: size, height: size, borderRadius: size * 0.22, backgroundColor: "#fff", padding: size * 0.12, flexDirection: "row", flexWrap: "wrap", elevation: 6, shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 6, shadowOffset: { width: 0, height: 4 },
+      transform: [{ rotate: rot.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "720deg"] }) }, { translateY: hop.interpolate({ inputRange: [0, 1], outputRange: [0, -26] }) }, { scale: hop.interpolate({ inputRange: [0, 1], outputRange: [1, 1.18] }) }] }}>
+      {value === 0 ? <Text style={{ flex: 1, textAlign: "center", fontSize: size * 0.5, alignSelf: "center" }}>🎲</Text> : Array.from({ length: 9 }).map((_, i) => (
+        <View key={i} style={{ width: "33.33%", height: "33.33%", alignItems: "center", justifyContent: "center" }}>{pips.includes(i) ? <View style={{ width: size * 0.17, height: size * 0.17, borderRadius: size, backgroundColor: value === 6 || value === 1 ? "#E5252A" : "#2B1730" }} /> : null}</View>))}
+    </Animated.View>
+  );
+}
 const REACTS = ["😀", "👏", "😢", "😡", "🔥"];
 
 export default function LudoScreen({ navigation }: any) {
@@ -22,6 +45,7 @@ export default function LudoScreen({ navigation }: any) {
   const [bubble, setBubble] = useState<string | null>(null);
   const [cool, setCool] = useState(false);
   const [stars, setStars] = useState(0);
+  const [step, setStep] = useState<{ col: Color; i: number; p: number } | null>(null);
   const timers = useRef<any[]>([]);
   const S = useRef({ pos, turn, dice, seats });
   S.current = { pos, turn, dice, seats };
@@ -37,10 +61,11 @@ export default function LudoScreen({ navigation }: any) {
     if (phase !== "roll" || winner) return;
     setPhase("rolling"); snd("dice");
     let n = 0;
+    const finalD = 1 + Math.floor(Math.random() * 6);
     const iv = setInterval(() => {
       n++; setDice(1 + Math.floor(Math.random() * 6));
-      if (n >= 7) { clearInterval(iv); afterRoll(1 + Math.floor(Math.random() * 6)); }
-    }, 85);
+      if (n >= 9) { clearInterval(iv); afterRoll(finalD); }
+    }, 90);
     timers.current.push(iv as any);
   }
   function afterRoll(d: number) {
@@ -56,12 +81,20 @@ export default function LudoScreen({ navigation }: any) {
     const { pos: p, seats: se } = S.current;
     const color = se[t];
     const r = applyMove(p, color, i, d);
-    setPos(r.pos); setPhase("moving"); snd(r.captured ? "capture" : "move");
-    if (r.won) {
-      after(450, () => { setWinner(color); snd(color === "Y" ? "win" : "lose"); submitBotGame("ludo", color === "Y" ? "win" : "loss").then(setStars); });
-      return;
-    }
-    after(500, () => next(d === 6 || r.captured, t));
+    const from = p[color][i];
+    setPhase("moving");
+    // Le pion avance case par case ; sortir de la base = une seule case.
+    const path: number[] = from === -1 ? [0] : Array.from({ length: d }, (_, k) => from + 1 + k);
+    path.forEach((q, k) => after(k * 190, () => { setStep({ col: color, i, p: q }); snd("move"); }));
+    const total = path.length * 190;
+    after(total + 60, () => {
+      setStep(null); setPos(r.pos); if (r.captured) snd("capture");
+      if (r.won) {
+        after(450, () => { setWinner(color); snd(color === "Y" ? "win" : "lose"); submitBotGame("ludo", color === "Y" ? "win" : "loss").then(setStars); });
+        return;
+      }
+      after(450, () => next(d === 6 || r.captured, t));
+    });
   }
   function next(extra: boolean, t: number) {
     const n = extra ? t : (t + 1) % S.current.seats.length;
@@ -107,13 +140,15 @@ export default function LudoScreen({ navigation }: any) {
   }
   const pawns: React.ReactNode[] = [];
   seats.forEach((col) => pos[col].forEach((p, i) => {
-    const [rr, cc] = coord(col, p, i); const key = rr + "," + cc; counts[key] = (counts[key] || 0) + 1;
+    const shown = step && step.col === col && step.i === i ? step.p : p;
+    const hopping = shown !== p || (step && step.col === col && step.i === i);
+    const [rr, cc] = coord(col, shown, i); const key = rr + "," + cc; counts[key] = (counts[key] || 0) + 1;
     const can = col === "Y" && mvSet.has(i);
     const off = (counts[key] - 1) * 3;
     pawns.push(
       <TouchableOpacity key={col + i} disabled={!can} onPress={() => move(i, dice, 0)} activeOpacity={0.8}
-        style={{ position: "absolute", left: cc * size + off, top: rr * size + off, width: size, height: size, alignItems: "center", justifyContent: "center", zIndex: can ? 9 : 5 }}>
-        <View style={{ width: size * 0.82, height: size * 0.82, borderRadius: size, backgroundColor: HEX[col], borderWidth: can ? 3 : 1.5, borderColor: can ? "#fff" : "rgba(0,0,0,0.35)", alignItems: "center", justifyContent: "center" }}>
+        style={{ position: "absolute", left: cc * size + off, top: rr * size + off, width: size, height: size, alignItems: "center", justifyContent: "center", zIndex: hopping ? 20 : can ? 9 : 5 }}>
+        <View style={{ width: size * 0.82, height: size * 0.82, borderRadius: size, transform: [{ scale: hopping ? 1.28 : 1 }], elevation: hopping ? 8 : 0, backgroundColor: HEX[col], borderWidth: can ? 3 : 1.5, borderColor: can ? "#fff" : "rgba(0,0,0,0.35)", alignItems: "center", justifyContent: "center" }}>
           <Text style={{ fontSize: size * 0.5 }}>{STYLES[style][0]}</Text></View>
       </TouchableOpacity>);
   }));
@@ -126,7 +161,7 @@ export default function LudoScreen({ navigation }: any) {
       <View style={{ width: size * 15, height: size * 15, borderRadius: 14, overflow: "hidden", backgroundColor: "#fff" }}>{cells}{pawns}</View>
       <Text style={s.hint}>{winner ? "Terminé" : myTurn ? (phase === "pick" ? "Touche un pion qui brille ✨" : phase === "roll" ? "À toi !" : "…") : "Tour de " + NAMES[color]}</Text>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
-        <View style={s.dice}><Text style={{ fontSize: 34, fontWeight: "800" }}>{dice || "🎲"}</Text></View>
+        <TouchableOpacity activeOpacity={0.8} disabled={!canRoll} onPress={roll}><Die value={dice} rolling={phase === "rolling"} /></TouchableOpacity>
         <TouchableOpacity style={[s.roll, !canRoll && { backgroundColor: "#C9B9C2" }]} disabled={!canRoll} onPress={roll}>
           <Text style={s.rollT}>{winner ? "" : phase === "rolling" ? "…" : canRoll ? "Lance !" : phase === "pick" && myTurn ? "Bouge un pion 👆" : "Elle joue…"}</Text></TouchableOpacity>
       </View>

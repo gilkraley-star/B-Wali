@@ -295,6 +295,44 @@ router.get("/courses", async (_req, res) => {
   res.json(courses.map((c) => ({ id: c.id, slug: c.slug, title: c.title, status: c.status, state: c.state, certTemplateId: c.certTemplateId, startsAt: c.startsAt, postponedTo: c.postponedTo, enrollments: c._count.enrollments })));
 });
 
+// ---------------------------------------------------------------------------
+// Entre Nous : thèmes et sous-thèmes du forum gérés par l'équipe
+// ---------------------------------------------------------------------------
+router.get("/forum-categories", async (_req, res) => {
+  const cats = await prisma.forumCategory.findMany({ orderBy: [{ sort: "asc" }], include: { _count: { select: { posts: true } } } });
+  res.json(cats.map((c) => ({ id: c.id, titleFr: c.titleFr, icon: c.icon, parentId: c.parentId, sort: c.sort, posts: c._count.posts })));
+});
+const catBody = z.object({ titleFr: z.string().trim().min(2).max(60), icon: z.string().max(8).optional(), parentId: z.string().nullable().optional() });
+router.post("/forum-categories", async (req: AuthRequest, res) => {
+  const p = catBody.safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: "Écris un nom de thème (2 lettres au moins)." });
+  if (p.data.parentId) { const par = await prisma.forumCategory.findUnique({ where: { id: p.data.parentId } }); if (!par || par.parentId) return res.status(400).json({ error: "Un sous-thème se range dans un thème général." }); }
+  let slug = "c-" + slugify(p.data.titleFr), n = 1;
+  while (await prisma.forumCategory.findUnique({ where: { slug } })) slug = "c-" + slugify(p.data.titleFr) + "-" + ++n;
+  const max = await prisma.forumCategory.aggregate({ _max: { sort: true }, where: { parentId: p.data.parentId ?? null } });
+  const c = await prisma.forumCategory.create({ data: { slug, titleFr: p.data.titleFr, icon: p.data.parentId ? null : p.data.icon || "💬", parentId: p.data.parentId ?? null, sort: (max._max.sort ?? 0) + 1 } });
+  await audit(req.userId, "CREATE_FORUM_CATEGORY", c.titleFr);
+  res.status(201).json(c);
+});
+router.patch("/forum-categories/:id", async (req: AuthRequest, res) => {
+  const p = catBody.partial().safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: "Nom invalide." });
+  const c = await prisma.forumCategory.update({ where: { id: req.params.id }, data: { titleFr: p.data.titleFr, icon: p.data.icon } });
+  await audit(req.userId, "RENAME_FORUM_CATEGORY", c.titleFr);
+  res.json(c);
+});
+router.delete("/forum-categories/:id", async (req: AuthRequest, res) => {
+  const c = await prisma.forumCategory.findUnique({ where: { id: req.params.id }, include: { _count: { select: { posts: true } } } });
+  if (!c) return res.status(404).json({ error: "Introuvable." });
+  const kids = await prisma.forumCategory.findMany({ where: { parentId: c.id }, include: { _count: { select: { posts: true } } } });
+  const posts = c._count.posts + kids.reduce((a, k) => a + k._count.posts, 0);
+  if (posts > 0) return res.status(409).json({ error: `Ce thème contient ${posts} message(s). Renomme-le plutôt, ou masque les messages d'abord.` });
+  await prisma.forumCategory.deleteMany({ where: { parentId: c.id } });
+  await prisma.forumCategory.delete({ where: { id: c.id } });
+  await audit(req.userId, "DELETE_FORUM_CATEGORY", c.titleFr);
+  res.status(204).send();
+});
+
 router.post("/courses", async (req: AuthRequest, res) => {
   const p = z.object({
     title: z.string().trim().min(4).max(140), summary: z.string().trim().min(10).max(600), outlineMd: z.string().trim().min(10).max(8000),
