@@ -1,0 +1,15 @@
+# Bê Wali sur le serveur NAXACI : un conteneur de plus, branché sur le Caddy déjà en place.
+services:
+  bewali-api:
+    build: ../backend
+    container_name: bewali-api
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - /root/bewali-data:/data   # base de données + photos : survivent aux mises à jour
+    networks: [caddy]
+
+networks:
+  caddy:
+    external: true
+    name: ${CADDY_NETWORK}

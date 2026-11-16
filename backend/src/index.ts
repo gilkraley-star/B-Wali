@@ -18,6 +18,7 @@ import path from "path";
 import { UPLOAD_DIR } from "./utils/uploads";
 
 const app = express();
+app.set("trust proxy", 1); // derrière Caddy : bonne adresse IP pour la limitation de débit
 
 // CSP assouplie uniquement pour l'interface d'admin (page statique avec script intégré).
 app.use(
