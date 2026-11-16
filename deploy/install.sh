@@ -13,9 +13,9 @@ mkdir -p "$DATA_DIR/uploads"
 cd "$APP_DIR/deploy"
 
 echo "== 2/6 Réglages (une seule fois) =="
-if [ ! -f .env ]; then
-  read -r -p "E-mail du compte administrateur Bê Wali : " ADMIN_EMAIL
-  read -r -s -p "Mot de passe administrateur (12 caractères ou plus, invisible quand tu tapes) : " ADMIN_PASSWORD; echo
+if [ ! -f .env ] || ! grep -q "^ADMIN_PASSWORD=.\+" .env; then
+  read -r -p "E-mail du compte administrateur Bê Wali : " ADMIN_EMAIL </dev/tty
+  read -r -s -p "Mot de passe administrateur (12 caractères ou plus, sans guillemets ni \$, invisible quand tu tapes) : " ADMIN_PASSWORD </dev/tty; echo
   NET=$(docker inspect "$CADDY_CT" --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' | awk '{print $1}')
   umask 077
   cat > .env <<ENV
