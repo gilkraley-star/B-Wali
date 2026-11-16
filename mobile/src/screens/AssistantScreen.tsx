@@ -43,7 +43,7 @@ export default function AssistantScreen({ navigation }: any) {
             {busy && <ActivityIndicator color={colors.rose} style={{ margin: 8 }} />}
             {msgs.length === 1 && IDEAS.map((i) => (<TouchableOpacity key={i} style={s.idea} onPress={() => send(i)}><Text style={s.ideaT}>{i}</Text></TouchableOpacity>))}
             {msgs.length > 1 && (
-              <TouchableOpacity style={s.pro} onPress={() => navigation.navigate("Professionnelles")}><Text style={s.proT}>👩‍⚕️ Écrire à une vraie sage-femme</Text></TouchableOpacity>)}
+              <TouchableOpacity style={s.pro} onPress={() => navigation.navigate("Professionnelles")}><Text style={s.proT}>👩‍⚕️ Écrire à une de nos professionnelles</Text></TouchableOpacity>)}
           </View>} />
       <View style={s.row}>
         <TextInput style={s.input} value={text} onChangeText={setText} placeholder="Écris ta question…" maxLength={500} multiline />
