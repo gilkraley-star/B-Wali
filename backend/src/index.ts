@@ -13,6 +13,7 @@ import adminRoutes from "./routes/admin";
 import proRoutes from "./routes/pro";
 import catalogRoutes from "./routes/catalog";
 import storiesRoutes from "./routes/stories";
+import liveRoutes from "./routes/live";
 import gamesRoutes from "./routes/games";
 import path from "path";
 import { UPLOAD_DIR } from "./utils/uploads";
@@ -60,6 +61,7 @@ app.use("/api/pro", proRoutes);
 app.use("/api/catalog", catalogRoutes);
 app.use("/api/stories", storiesRoutes);
 app.use("/api/games", gamesRoutes);
+app.use("/api/live", liveRoutes);
 
 // Photos des comptes professionnels et interface d'administration web (/admin)
 app.use("/uploads", express.static(UPLOAD_DIR, { maxAge: "7d" }));

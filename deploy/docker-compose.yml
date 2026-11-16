@@ -9,6 +9,20 @@ services:
       - /root/bewali-data:/data   # base de données + photos : survivent aux mises à jour
     networks: [caddy]
 
+  # Serveur de vidéo pour les directs (LiveKit, libre et gratuit)
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: bewali-livekit
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    ports:
+      - "7881:7881/tcp"          # repli TCP (réseaux difficiles)
+      - "50000-50200:50000-50200/udp"  # flux vidéo
+    mem_limit: 700m
+    networks: [caddy]
+
 networks:
   caddy:
     external: true

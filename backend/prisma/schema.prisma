@@ -226,6 +226,9 @@ model Course {
   startsAt    DateTime?
   postponedTo DateTime?
   state       String   @default("OUVERT") // OUVERT | REPORTEE | TERMINEE
+  liveState   String   @default("AUCUN") // AUCUN | EN_COURS | TERMINE (direct dans l'appli)
+  liveStartedAt DateTime?
+  liveEndedAt   DateTime?
   outlineMd   String   // plan du cours en markdown
   qcmJson     String   @default("[]") // [{q, options[], correct}]
   sourcesJson String   @default("[]")
@@ -244,6 +247,8 @@ model Enrollment {
   courseId   String
   course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   attendedToEnd Boolean @default(false) // vrai seulement si la fille a suivi le direct jusqu'à la fin
+  watchedSec  Int      @default(0)   // temps de présence cumulé pendant le direct (secondes)
+  lastBeatAt  DateTime?
   score      Int?
   certificateNo String?
   createdAt  DateTime @default(now())

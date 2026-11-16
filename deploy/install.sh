@@ -2,6 +2,7 @@
 # Installe (ou met à jour) Bê Wali sur le serveur. Se lance en root : bash install.sh
 set -euo pipefail
 DOMAIN="${BEWALI_DOMAIN:-bewali.naxaci.com}"
+LIVE_DOMAIN="${BEWALI_LIVE_DOMAIN:-live.naxaci.com}"
 CADDY_DIR="/root/naxaci-mail"
 CADDY_CT="naxaci-mail-caddy-1"
 APP_DIR="/root/be-wali"
@@ -31,6 +32,25 @@ CADDY_NETWORK=$NET
 ENV
 fi
 
+# Direct (LiveKit) : clés créées une seule fois
+if ! grep -q "^LIVEKIT_API_KEY=" .env; then
+  LK_KEY="bw$(openssl rand -hex 6)"; LK_SECRET="$(openssl rand -hex 24)"
+  { echo "LIVEKIT_URL=wss://$LIVE_DOMAIN"; echo "LIVEKIT_API_KEY=$LK_KEY"; echo "LIVEKIT_API_SECRET=$LK_SECRET"; } >> .env
+fi
+set -a; . ./.env; set +a
+cat > livekit.yaml <<LK
+port: 7880
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50200
+  use_external_ip: true
+keys:
+  $LIVEKIT_API_KEY: $LIVEKIT_API_SECRET
+LK
+chmod 600 livekit.yaml
+(command -v ufw >/dev/null && ufw status | grep -q active && ufw allow 7881/tcp && ufw allow 50000:50200/udp) || true
+
 echo "== 3/6 Adresse https://$DOMAIN dans Caddy =="
 if ! grep -q "^$DOMAIN" "$CADDY_DIR/Caddyfile"; then
   cp "$CADDY_DIR/Caddyfile" "$CADDY_DIR/Caddyfile.avant-bewali"
@@ -43,6 +63,16 @@ $DOMAIN {
 }
 CADDY
 fi
+if ! grep -q "^$LIVE_DOMAIN" "$CADDY_DIR/Caddyfile"; then
+  cat >> "$CADDY_DIR/Caddyfile" <<CADDY
+
+# Direct Bê Wali (vidéo en temps réel)
+$LIVE_DOMAIN {
+        reverse_proxy bewali-livekit:7880
+}
+CADDY
+fi
+getent hosts "$LIVE_DOMAIN" >/dev/null || echo "⚠ $LIVE_DOMAIN ne pointe pas encore vers ce serveur : ajoute l'entrée DNS de type A « live »."
 getent hosts "$DOMAIN" >/dev/null || echo "⚠ $DOMAIN ne pointe pas encore vers ce serveur : ajoute l'entrée DNS de type A, puis relance ce script."
 
 echo "== 4/6 Construction et démarrage (3 à 6 minutes) =="
