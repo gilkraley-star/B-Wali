@@ -16,14 +16,12 @@ export default function CentresScreen() {
   );
   return (
     <ScrollView style={{ flex: 1, backgroundColor: "#FFF6F0" }} contentContainerStyle={{ padding: 20 }}>
-      <Text style={s.warn}>⚠️ Établissements de Bangui repérés sur Google Maps. Les numéros et les horaires restent à confirmer avec chaque structure : appelle avant de te déplacer si possible.</Text>
       {CENTRES.map((c, i) => (
         <FadeUp key={c.nom} delay={60 + i * 60}>
           <View style={s.card}>
             <Text style={s.n}>{c.nom}</Text><Text style={s.t}>{c.type}</Text>{c.quartier ? <Text style={s.t}>📍 {c.quartier}, {c.ville}</Text> : null}
             <View style={s.row}>
               <TouchableOpacity style={s.btn} onPress={() => Linking.openURL(c.lat && c.lng ? `https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}` : "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(c.nom + " " + c.ville))}><Text style={s.btnT}>📍 Itinéraire</Text></TouchableOpacity>
-              <View style={s.tel}><Text style={s.telT}>☎ à confirmer</Text></View>
             </View>
           </View>
         </FadeUp>))}
