@@ -1,3 +1,4 @@
+import { normCountry } from "../utils/countries";
 import { ageFromBirthDate, bracketFromAge, MIN_AGE, parseBirthDate } from "../utils/age";
 import { Router } from "express";
 import bcrypt from "bcryptjs";
@@ -18,6 +19,7 @@ const signupSchema = z.object({
   birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date de naissance : jour, mois et année sont obligatoires."),
   acceptTerms: z.literal(true, { errorMap: () => ({ message: "Tu dois lire et accepter les conditions d'utilisation." }) }),
   participatesForum: z.boolean().optional(),
+  country: z.string().length(2).optional(),
   photo: z.string().min(100, "Ajoute ta photo pour continuer."),
 });
 
@@ -73,6 +75,7 @@ router.post("/signup", async (req, res) => {
   const user = await prisma.user.create({
     data: {
       photoUrl,
+      country: normCountry(parsed.data.country),
       email,
       phone,
       passwordHash,
@@ -87,7 +90,7 @@ router.post("/signup", async (req, res) => {
   const token = signToken({ userId: user.id, role: user.role });
   res.status(201).json({
     token,
-    user: { id: user.id, pseudonyme: user.pseudonyme, ageBracket: user.ageBracket, role: user.role },
+    user: { id: user.id, pseudonyme: user.pseudonyme, ageBracket: user.ageBracket, role: user.role, country: user.country },
   });
 });
 
@@ -131,6 +134,7 @@ router.post("/login", async (req, res) => {
       pseudonyme: user.pseudonyme,
       ageBracket: user.ageBracket,
       role: user.role,
+      country: user.country,
       fullName: user.fullName,
       profession: user.profession,
       photoUrl: user.photoUrl,
@@ -151,6 +155,7 @@ router.get("/me", requireAuth, async (req: AuthRequest, res) => {
     pseudonyme: user.pseudonyme,
     ageBracket: user.ageBracket,
     role: user.role,
+    country: user.country,
     fullName: user.fullName,
     profession: user.profession,
     photoUrl: user.photoUrl,

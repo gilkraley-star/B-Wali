@@ -35,6 +35,7 @@ model User {
   available     Boolean   @default(false)
   active        Boolean   @default(true)
   mustChangePassword Boolean @default(false)
+  country       String   @default("CF") // pays choisi à l'inscription (code ISO), adapte urgences, centres, annonces
   birthDate       DateTime? // date de naissance obligatoire à l'inscription ; la tranche d'âge en est déduite
   suspendedUntil  DateTime? // suspendue (ne peut plus écrire) jusqu'à cette date
   suspensionCount Int      @default(0) // 1re fois 72 h, 2e fois 10 jours, 3e fois et plus 3 mois
@@ -378,6 +379,7 @@ model Announcement {
   title     String
   body      String    @default("")
   color     String    @default("violet") // rose | violet | bleu | vert | jaune
+  country   String?   // null = tous les pays ; sinon code pays (ex. CF)
   target    String?   // écran à ouvrir au clic : Formations | Assistant | Games | Revenus | MonCarnet | Partager
   active    Boolean   @default(true)
   endsAt    DateTime?

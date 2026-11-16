@@ -203,9 +203,9 @@
       '<div class="row" style="margin-top:8px"><input id="a_body" placeholder="Texte court (140 lettres max)" class="grow"></div>' +
       '<div class="row" style="margin-top:8px"><select id="a_color">'+Object.keys(COLS).map(function(k){return '<option value="'+k+'">'+COLS[k]+'</option>';}).join("")+'</select>' +
       '<select id="a_target">'+TARGETS.map(function(t){return '<option value="'+t[0]+'">Au clic : '+t[1]+'</option>';}).join("")+'</select>' +
-      '<small>Fin :</small><input type="date" id="a_end" style="max-width:160px"><button id="a_go">Publier</button></div></div>';
+      '<select id="a_country"><option value="">Tous les pays</option><option value="CF">Centrafrique seulement</option><option value="CM">Cameroun seulement</option><option value="TD">Tchad seulement</option><option value="CD">RD Congo seulement</option><option value="CG">Congo-Brazzaville seulement</option></select><small>Fin :</small><input type="date" id="a_end" style="max-width:160px"><button id="a_go">Publier</button></div></div>';
     (state.anns || []).forEach(function(a){
-      h += '<div class="card"><div class="row"><div class="grow"><b>'+esc(a.emoji)+' '+esc(a.title)+'</b><br><small>'+esc(a.body||"")+' · '+esc(COLS[a.color]||a.color)+(a.target?' · ouvre '+esc(a.target):'')+(a.endsAt?' · jusqu\'au '+new Date(a.endsAt).toLocaleDateString("fr-FR"):'')+' · '+(a.active?'🟢 visible':'⚪ cachée')+'</small></div>' +
+      h += '<div class="card"><div class="row"><div class="grow"><b>'+esc(a.emoji)+' '+esc(a.title)+'</b><br><small>'+esc(a.body||"")+' · '+esc(COLS[a.color]||a.color)+(a.target?' · ouvre '+esc(a.target):'')+' · '+(a.country?esc(a.country)+' seulement':'tous pays')+(a.endsAt?' · jusqu\'au '+new Date(a.endsAt).toLocaleDateString("fr-FR"):'')+' · '+(a.active?'🟢 visible':'⚪ cachée')+'</small></div>' +
         '<button class="s" data-annact="'+a.id+'" data-v="'+(!a.active)+'">'+(a.active?'Cacher':'Montrer')+'</button><button class="bad" data-anndel="'+a.id+'">Supprimer</button></div></div>';
     });
     return h || '';
@@ -316,7 +316,7 @@
     var ago = document.getElementById("a_go");
     if (ago) ago.onclick = act(async function(){
       var e = document.getElementById("a_end").value;
-      await api("/admin/announcements", {method:"POST", body:{emoji:v("a_emoji")||"📣", title:v("a_title"), body:v("a_body"), color:document.getElementById("a_color").value, target:document.getElementById("a_target").value||null, endsAt: e ? new Date(e+"T23:59:00").toISOString() : null}});
+      await api("/admin/announcements", {method:"POST", body:{emoji:v("a_emoji")||"📣", title:v("a_title"), body:v("a_body"), color:document.getElementById("a_color").value, target:document.getElementById("a_target").value||null, country:document.getElementById("a_country").value||null, endsAt: e ? new Date(e+"T23:59:00").toISOString() : null}});
       flash("Annonce publiée : elle défile sur l'accueil."); await load();
     });
     $$("[data-annact]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/announcements/"+b.dataset.annact, {method:"PATCH", body:{active:b.dataset.v==="true"}}); await load(); }); });

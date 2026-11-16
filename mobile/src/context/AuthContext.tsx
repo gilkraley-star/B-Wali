@@ -11,6 +11,7 @@ export interface User {
   pseudonyme: string;
   ageBracket: "ADOLESCENTE" | "JEUNE_FEMME" | "FEMME_ADULTE";
   role: string;
+  country?: string;
   participatesForum?: boolean;
   fullName?: string | null;
   profession?: string | null;
@@ -30,6 +31,7 @@ interface AuthContextValue {
     pseudonyme: string;
     birthDate: string; // AAAA-MM-JJ
     acceptTerms: boolean;
+    country?: string;
     photo: string; // photo de profil (data URL)
   }) => Promise<void>;
   logout: () => Promise<void>;
@@ -47,8 +49,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [pendingProblem, setPendingProblem] = useState<string | null>(null);
   const syncing = useRef(false);
 
-  const localUser = (p: { pseudonyme: string; birthDate: string }): User => ({
-    id: "local", pseudonyme: p.pseudonyme, ageBracket: bracketFromBirthDate(p.birthDate), role: "UTILISATRICE", participatesForum: false, pending: true,
+  const localUser = (p: { pseudonyme: string; birthDate: string; country?: string }): User => ({
+    id: "local", country: p.country, pseudonyme: p.pseudonyme, ageBracket: bracketFromBirthDate(p.birthDate), role: "UTILISATRICE", participatesForum: false, pending: true,
   });
 
   // Crée le compte en ligne à partir de l'inscription gardée sur le téléphone.

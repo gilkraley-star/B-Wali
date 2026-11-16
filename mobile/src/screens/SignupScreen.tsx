@@ -7,6 +7,7 @@ import { useI18n } from "../i18n";
 import { colors, radius, spacing } from "../theme/colors";
 import { ErrorText, FieldLabel, PrimaryButton, ScreenTitle, TextInput } from "../theme/ui";
 import { ApiError } from "../api/client";
+import { COUNTRIES, DEFAULT_COUNTRY } from "../config/countries";
 import { TERMS_PARAGRAPHS, TERMS_TITLE } from "../i18n/terms";
 
 export default function SignupScreen({ navigation }: any) {
@@ -22,6 +23,7 @@ export default function SignupScreen({ navigation }: any) {
     if (r.canceled || !r.assets[0]?.base64) return;
     setPhoto({ uri: r.assets[0].uri, dataUrl: "data:image/jpeg;base64," + r.assets[0].base64 });
   };
+  const [country, setCountry] = useState(DEFAULT_COUNTRY);
   const [byPhone, setByPhone] = useState(true);
   const [contact, setContact] = useState("");
   const [password, setPassword] = useState("");
@@ -60,7 +62,7 @@ export default function SignupScreen({ navigation }: any) {
     setLoading(true);
     try {
       try { await AsyncStorage.setItem("wali.welcome", pseudonyme); } catch {}
-      await signup({ ...(byPhone ? { phone: contact } : { email: contact }), password, pseudonyme, birthDate, acceptTerms: true, photo: photo.dataUrl });
+      await signup({ ...(byPhone ? { phone: contact } : { email: contact }), password, pseudonyme, birthDate, acceptTerms: true, country, photo: photo.dataUrl });
     } catch (e) {
       try { await AsyncStorage.removeItem("wali.welcome"); } catch {}
       setError(e instanceof ApiError ? e.message : t("error_generic"));
@@ -75,6 +77,16 @@ export default function SignupScreen({ navigation }: any) {
         <Text style={styles.step}>ÉTAPE {step} SUR 2</Text>
         <ScreenTitle>{step === 1 ? t("signup") : "Ajoute ta photo"}</ScreenTitle>
         {step === 1 ? (<>
+        <FieldLabel>Ton pays</FieldLabel>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+          {COUNTRIES.map((c) => (
+            <TouchableOpacity key={c.code} onPress={() => setCountry(c.code)} activeOpacity={0.8}
+              style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1.5, borderColor: country === c.code ? "#FF5470" : "#F3DEE1", backgroundColor: country === c.code ? "#FFE3E8" : "#fff" }}>
+              <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 12.5, color: "#3B1D33" }}>{c.flag} {c.name}</Text>
+            </TouchableOpacity>))}
+        </View>
+        {!COUNTRIES.find((c) => c.code === country)?.ready ? <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 6, lineHeight: 17 }}>Wali démarre en Centrafrique. Pour ton pays, les centres de santé et les numéros d'urgence arrivent bientôt. Le reste de l'appli fonctionne déjà.</Text> : null}
+
         <FieldLabel>{byPhone ? "Ton numéro de téléphone" : "Ton e-mail"}</FieldLabel>
         <TextInput value={contact} onChangeText={setContact} autoCapitalize="none" keyboardType={byPhone ? "phone-pad" : "email-address"} placeholder={byPhone ? "70 12 34 56" : "nom@exemple.com"} />
         <Text style={{ color: colors.rose, fontWeight: "700", marginTop: 6 }} onPress={() => { setByPhone(!byPhone); setContact(""); }}>

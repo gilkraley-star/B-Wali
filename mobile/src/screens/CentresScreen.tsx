@@ -1,17 +1,19 @@
 import React from "react";
 import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { FadeUp } from "../components/anim";
+import { useAuth } from "../context/AuthContext";
+import { getCountry } from "../config/countries";
 
-// Centres de santé de Bangui (liste indicative de la maquette). Les numéros et horaires restent « à confirmer »
-// tant que l'équipe ne les a pas vérifiés avec chaque structure.
-const CENTRES = [
-  { nom: "Hôpital Général de Bangui", type: "Hôpital public · soins généraux" },
-  { nom: "Hôpital Communautaire de Bangui", type: "Urgences · traumatologie" },
-  { nom: "Hôpital de l'Amitié", type: "Hôpital public" },
-  { nom: "Complexe Pédiatrique de Bangui", type: "Soins pour enfants et adolescentes" },
-  { nom: "Centre Hospitalier Universitaire de Bangui", type: "Soins spécialisés, imagerie" },
-];
+// Centres de santé selon le pays de la fille (liste indicative ; numéros et horaires « à confirmer »).
 export default function CentresScreen() {
+  const { user } = useAuth();
+  const country = getCountry(user?.country);
+  const CENTRES = country.centres;
+  if (!CENTRES.length) return (
+    <ScrollView style={{ flex: 1, backgroundColor: "#FFF6F0" }} contentContainerStyle={{ padding: 20 }}>
+      <View style={s.help}><Text style={s.n}>Bientôt pour {country.name} {country.flag}</Text><Text style={s.t}>La liste des centres de santé de ton pays est en préparation avec des professionnelles locales. En attendant, tu peux écrire à une de nos professionnelles depuis l'accueil.</Text></View>
+    </ScrollView>
+  );
   return (
     <ScrollView style={{ flex: 1, backgroundColor: "#FFF6F0" }} contentContainerStyle={{ padding: 20 }}>
       <Text style={s.warn}>⚠️ Liste indicative. Les adresses, numéros et horaires doivent être vérifiés avec chaque structure avant le lancement.</Text>
@@ -20,7 +22,7 @@ export default function CentresScreen() {
           <View style={s.card}>
             <Text style={s.n}>{c.nom}</Text><Text style={s.t}>{c.type}</Text>
             <View style={s.row}>
-              <TouchableOpacity style={s.btn} onPress={() => Linking.openURL("https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(c.nom + " Bangui"))}><Text style={s.btnT}>📍 Itinéraire</Text></TouchableOpacity>
+              <TouchableOpacity style={s.btn} onPress={() => Linking.openURL("https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(c.nom + " " + c.ville))}><Text style={s.btnT}>📍 Itinéraire</Text></TouchableOpacity>
               <View style={s.tel}><Text style={s.telT}>☎ à confirmer</Text></View>
             </View>
           </View>

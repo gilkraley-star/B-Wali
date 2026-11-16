@@ -374,7 +374,7 @@ router.patch("/courses/:id/template", async (req: AuthRequest, res) => {
 const annBody = z.object({
   emoji: z.string().max(8).optional(), title: z.string().min(2).max(60), body: z.string().max(140).optional(),
   color: z.enum(["rose", "violet", "bleu", "vert", "jaune"]).optional(), target: z.string().max(30).nullable().optional(),
-  active: z.boolean().optional(), endsAt: z.string().datetime().nullable().optional(),
+  active: z.boolean().optional(), endsAt: z.string().datetime().nullable().optional(), country: z.string().length(2).nullable().optional(),
 });
 router.get("/announcements", async (_req, res) => { res.json(await prisma.announcement.findMany({ orderBy: { createdAt: "desc" } })); });
 router.post("/announcements", async (req: AuthRequest, res) => {

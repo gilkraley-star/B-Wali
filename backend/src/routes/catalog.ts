@@ -146,9 +146,10 @@ router.get("/courses/:slug/certificate", requireAuth, async (req: AuthRequest, r
 });
 
 // GET /api/catalog/announcements — annonces actives pour le défilement de l'accueil
-router.get("/announcements", requireAuth, async (_req, res) => {
+router.get("/announcements", requireAuth, async (req: AuthRequest, res) => {
   const now = new Date();
-  const list = await prisma.announcement.findMany({ where: { active: true, OR: [{ endsAt: null }, { endsAt: { gt: now } }] }, orderBy: { createdAt: "desc" }, take: 5 });
+  const me = await prisma.user.findUnique({ where: { id: req.userId }, select: { country: true } });
+  const list = await prisma.announcement.findMany({ where: { active: true, AND: [{ OR: [{ endsAt: null }, { endsAt: { gt: now } }] }, { OR: [{ country: null }, { country: me?.country || "CF" }] }] }, orderBy: { createdAt: "desc" }, take: 5 });
   res.json(list.map((a) => ({ id: a.id, emoji: a.emoji, title: a.title, body: a.body, color: a.color, target: a.target })));
 });
 

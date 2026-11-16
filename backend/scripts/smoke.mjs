@@ -57,6 +57,16 @@ const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJA
   r = await call("POST", "/auth/signup", { body: { email: "fille@test.org", password: "motdepasse1", pseudonyme: "fille_test", birthDate: "2003-04-12", acceptTerms: true, photo: PNG } });
   check("inscription utilisatrice", r.status === 201);
   const fille = r.data.token;
+  check("pays par défaut = Centrafrique", r.data.user.country === "CF");
+  r = await call("POST", "/auth/signup", { body: { email: "tchad@test.org", password: "motdepasse1", pseudonyme: "fille_tchad", birthDate: "2003-04-12", acceptTerms: true, country: "TD", photo: PNG } });
+  check("inscription avec pays Tchad", r.status === 201 && r.data.user.country === "TD");
+  const tchad = r.data.token;
+  r = await call("POST", "/admin/announcements", { token: admin, body: { title: "Annonce Tchad seulement", country: "TD" } });
+  check("admin : annonce réservée au Tchad", r.status === 201);
+  r = await call("GET", "/catalog/announcements", { token: tchad });
+  check("fille du Tchad voit l'annonce Tchad", r.status === 200 && r.data.some((x) => x.title === "Annonce Tchad seulement"));
+  r = await call("GET", "/catalog/announcements", { token: fille });
+  check("fille de Centrafrique ne la voit pas", r.status === 200 && !r.data.some((x) => x.title === "Annonce Tchad seulement"));
   r = await call("GET", "/admin/stats", { token: fille });
   check("utilisatrice : admin interdit (403)", r.status === 403);
   r = await call("GET", "/pro/mine", { token: fille });
