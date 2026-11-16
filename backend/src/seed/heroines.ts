@@ -1,0 +1,52 @@
+// Héroïnes africaines : récits courts, écrits pour Wali à partir de faits historiques bien connus.
+// Statut A_VALIDER comme tout le reste : une enseignante d'histoire relit puis publie depuis l'administration.
+import type { StorySeed } from "./stories";
+
+const NOTE = "Faits historiques à vérifier par une enseignante d'histoire avant publication (dates, noms de lieux).";
+const CREDIT = "Texte original Wali, d'après des faits historiques";
+const h = (slug: string, title: string, summary: string, icon: string, chapters: { title: string; body: string }[]): StorySeed => ({
+  slug, title, summary, category: "HEROINE", ageMin: 10, icon, origin: "ORIGINALE", credit: CREDIT, readMin: 4, reviewNote: NOTE, chapters,
+});
+
+export const HEROINES: StorySeed[] = [
+  h("nzinga-reine-du-ndongo", "Nzinga, la reine qui ne s'est jamais inclinée", "Une reine d'Angola qui a tenu tête aux colons pendant des dizaines d'années.", "👑", [
+    { title: "Une princesse qui écoute", body: "Au XVIIe siècle, dans l'actuelle Angola, vit une princesse nommée Nzinga. Elle est fille de roi et elle aime écouter les grandes personnes parler des affaires du royaume. Elle apprend à négocier, à compter et à bien choisir ses mots.\n\nÀ cette époque, des commerçants portugais arrivent sur la côte. Ils veulent des terres et ils font des captifs. Le royaume du Ndongo est en danger." },
+    { title: "La négociation", body: "Vers 1622, le frère de Nzinga, qui est roi, l'envoie parler au gouverneur portugais à Luanda. On raconte que, dans la salle, il n'y avait de chaise que pour le gouverneur. Nzinga a refusé de rester debout comme une personne de rang inférieur : elle a fait installer un siège pour elle aussi, pour parler d'égale à égal.\n\nLa leçon qu'on en retient : une femme peut entrer dans une pièce pleine de puissants et demander sa place." },
+    { title: "Reine et cheffe", body: "Plus tard, Nzinga devient reine. Elle se bat, elle fait des alliances et elle fonde un nouveau royaume, le Matamba. Pendant des dizaines d'années, elle résiste aux Portugais. Elle meurt en 1663, très âgée, toujours à la tête de son peuple.\n\nAujourd'hui, en Angola, on se souvient d'elle comme d'un symbole de courage.\n\nEt toi ? Dans quelle situation as-tu eu envie de dire « moi aussi, j'ai le droit d'être là » ?" },
+  ]),
+  h("yaa-asantewaa-tabouret-d-or", "Yaa Asantewaa et le Tabouret d'or", "La reine mère ashanti qui a conduit son peuple à défendre ce qu'il avait de plus précieux.", "🪑", [
+    { title: "Le Tabouret d'or", body: "Chez les Ashanti, au Ghana, il existe un objet sacré : le Tabouret d'or. Il représente l'âme du peuple. Personne ne s'assoit dessus.\n\nEn 1900, le gouverneur britannique exige de s'asseoir sur ce Tabouret. Pour les Ashanti, c'est une insulte immense." },
+    { title: "« Si les hommes ne se lèvent pas »", body: "Les chefs hésitent. Yaa Asantewaa, reine mère d'Ejisu, une femme déjà âgée, prend la parole. Elle dit que, si les hommes ne défendent pas leur peuple, les femmes le feront.\n\nElle est choisie comme cheffe de guerre. C'est ce qu'on appelle la guerre du Tabouret d'or." },
+    { title: "Ce qui reste", body: "Les Britanniques finissent par l'emporter et Yaa Asantewaa est envoyée en exil aux Seychelles, où elle meurt en 1921. Mais le Tabouret d'or est resté caché et il existe toujours.\n\nAujourd'hui, au Ghana, des écoles et des centres portent son nom. Elle rappelle qu'on peut être âgée, femme, et devenir la voix de tout un peuple.\n\nEt toi ? Qu'est-ce qui est tellement précieux pour toi que tu le défendrais ?" },
+  ]),
+  h("wangari-maathai-les-arbres", "Wangari Maathai, la femme qui a planté des millions d'arbres", "Une scientifique kényane qui a changé son pays en commençant par un arbre.", "🌳", [
+    { title: "Étudier, puis comprendre", body: "Wangari Maathai naît au Kenya en 1940. Elle est excellente élève et elle part étudier la biologie. Elle devient l'une des premières femmes d'Afrique de l'Est à obtenir un doctorat.\n\nEn rentrant, elle voit que les forêts disparaissent. Sans arbres, la terre s'assèche, l'eau devient rare et les femmes marchent de plus en plus loin pour trouver du bois et de l'eau." },
+    { title: "Un arbre après l'autre", body: "En 1977, elle crée le Mouvement de la ceinture verte. Son idée est simple : donner un peu d'argent aux femmes pour qu'elles plantent des arbres, et les former à les soigner.\n\nLe mouvement grandit. Des millions d'arbres sont plantés. Des femmes gagnent un revenu, retrouvent de l'ombre, de l'eau et du respect." },
+    { title: "Un prix pour la paix", body: "Wangari a aussi défendu la nature et la démocratie. Cela lui a valu des menaces et la prison. En 2004, elle reçoit le prix Nobel de la paix : elle est la première Africaine à le recevoir.\n\nElle est morte en 2011, mais ses arbres sont toujours là.\n\nEt toi ? Quelle petite action, répétée chaque jour, pourrait changer quelque chose autour de toi ?" },
+  ]),
+  h("ellen-johnson-sirleaf", "Ellen Johnson Sirleaf, première présidente élue d'Afrique", "Une économiste qui a reconstruit un pays après la guerre.", "🏛️", [
+    { title: "Un pays à reconstruire", body: "Le Liberia, en Afrique de l'Ouest, a connu de longues guerres civiles. Les écoles, les routes et les hôpitaux étaient détruits.\n\nEllen Johnson Sirleaf est économiste. Elle a travaillé pour des institutions internationales et elle connaît bien les budgets d'un pays." },
+    { title: "L'élection", body: "En 2005, elle se présente à la présidence. De nombreuses femmes font campagne pour elle. Elle gagne et prend ses fonctions en janvier 2006 : elle devient la première femme élue cheffe d'État en Afrique.\n\nElle est restée présidente jusqu'en 2018, en essayant de rétablir la paix, l'école et les services publics." },
+    { title: "Le Nobel", body: "En 2011, elle reçoit le prix Nobel de la paix, avec Leymah Gbowee, une autre Libérienne, et Tawakkol Karman, du Yémen, pour leur action en faveur des femmes.\n\nElle montre qu'une femme peut diriger un pays, même après la guerre.\n\nEt toi ? Si tu dirigeais ta ville demain, quelle serait ta première décision ?" },
+  ]),
+  h("leymah-gbowee-femmes-en-blanc", "Leymah Gbowee et les femmes en blanc", "Des mères qui ont aidé à arrêter une guerre en restant ensemble.", "🕊️", [
+    { title: "La guerre vue par les mères", body: "Pendant la guerre civile du Liberia, Leymah Gbowee est travailleuse sociale. Elle voit des enfants forcés de devenir soldats, des familles chassées et des femmes qui souffrent.\n\nElle comprend que les mères peuvent être une force de paix, mais seulement si elles s'unissent." },
+    { title: "Chrétiennes et musulmanes, ensemble", body: "Elle rassemble des femmes de religions différentes. Habillées en blanc, elles prient et chantent sur un marché, chaque jour, pour demander la paix. Elles refusent de se laisser diviser.\n\nElles vont aussi jusqu'à la ville où les chefs de guerre négocient, et refusent de partir tant qu'un accord n'est pas trouvé." },
+    { title: "La paix", body: "En 2003, un accord de paix est signé. Le rôle de ces femmes a été reconnu dans le monde entier. En 2011, Leymah Gbowee reçoit le prix Nobel de la paix.\n\nSon histoire montre qu'on n'a pas besoin d'armes pour changer les choses : on peut commencer par se rassembler.\n\nEt toi ? Avec qui pourrais-tu t'unir pour résoudre un problème dans ton quartier ?" },
+  ]),
+  h("catherine-samba-panza", "Catherine Samba-Panza, d'abord maire de Bangui", "La première femme à avoir dirigé la Centrafrique, à une période très difficile.", "🇨🇫", [
+    { title: "Une maire de Bangui", body: "Catherine Samba-Panza est centrafricaine. Elle est devenue maire de Bangui, la capitale, à une période où la ville traversait de grandes difficultés." },
+    { title: "Présidente de la transition", body: "En janvier 2014, alors que le pays est en crise, elle est choisie pour diriger la transition. Elle devient la première femme à occuper cette fonction en Centrafrique.\n\nSa mission : ramener le calme, préparer des élections et rassembler les Centrafricains. Elle a exercé cette fonction jusqu'en 2016." },
+    { title: "Ce que ça nous dit", body: "Dans l'histoire de ton pays, une femme a déjà dirigé l'État. Cela veut dire que, pour toi aussi, les grandes responsabilités ne sont pas interdites.\n\nEt toi ? Quelle responsabilité aimerais-tu porter un jour ?" },
+  ]),
+  h("miriam-makeba-mama-africa", "Miriam Makeba, « Mama Africa »", "Une chanteuse qui a fait entendre la voix de l'Afrique du Sud au monde entier.", "🎤", [
+    { title: "Une voix", body: "Miriam Makeba naît en Afrique du Sud en 1932. Elle chante depuis son enfance. Sa voix devient célèbre dans son pays, puis à l'étranger." },
+    { title: "L'exil", body: "À cette époque, en Afrique du Sud, la loi sépare les gens selon la couleur de leur peau : c'est l'apartheid. Miriam Makeba le dénonce, même devant les Nations unies en 1963. Pour cela, elle n'a plus le droit de rentrer chez elle. Elle vivra de nombreuses années en exil." },
+    { title: "Mama Africa", body: "Elle continue de chanter dans le monde entier et on la surnomme « Mama Africa ». Elle est revenue en Afrique du Sud en 1990, quand l'apartheid commençait à tomber. Elle est morte en 2008, après un concert.\n\nSa vie montre que l'art peut être aussi une façon de se battre pour la justice.\n\nEt toi ? Quel talent as-tu, que tu pourrais mettre au service d'une cause ?" },
+  ]),
+  h("funmilayo-ransome-kuti", "Funmilayo Ransome-Kuti et les femmes d'Abeokuta", "Une enseignante nigériane qui a fait reculer une injustice avec des milliers de femmes.", "✊", [
+    { title: "Apprendre aux femmes à lire", body: "Funmilayo Ransome-Kuti est enseignante au Nigeria. Elle crée des cours pour que les femmes du marché apprennent à lire et à écrire. Elle sait que celle qui sait lire ne se laisse pas tromper." },
+    { title: "Une taxe injuste", body: "Dans les années 1940, les femmes d'Abeokuta subissent des taxes qu'elles trouvent injustes. Funmilayo organise l'Union des femmes d'Abeokuta. Des milliers de femmes manifestent ensemble, avec calme et détermination." },
+    { title: "Victoire et héritage", body: "La taxe est abandonnée. Funmilayo continue ensuite à défendre le droit des femmes de participer à la vie politique de son pays.\n\nSon histoire rappelle que l'éducation et l'union ouvrent des portes.\n\nEt toi ? Qu'est-ce que tu aimerais apprendre à une autre fille ?" },
+  ]),
+];

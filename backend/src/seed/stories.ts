@@ -110,4 +110,6 @@ export const STORIES: StorySeed[] = [
 // Histoires libres de l'African Storybook (CC BY / CC BY-NC), français, importées avec auteur, illustratrice,
 // traductrice et licence. Fichier généré depuis https://github.com/global-asp/asp-source/tree/master/fr
 import aspStories from "./stories-asp.json";
+import { HEROINES } from "./heroines";
 STORIES.push(...(aspStories as StorySeed[]));
+STORIES.push(...HEROINES);

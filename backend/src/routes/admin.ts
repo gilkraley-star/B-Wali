@@ -31,6 +31,7 @@ function modelFor(type: string): any {
   if (type === "articles") return prisma.article;
   if (type === "courses") return prisma.course;
   if (type === "income") return prisma.incomeActivity;
+  if (type === "stories") return prisma.story;
   return null;
 }
 
@@ -42,7 +43,7 @@ function titleOf(type: string, x: any): string {
 // Tableau de bord
 // ---------------------------------------------------------------------------
 router.get("/stats", async (_req, res) => {
-  const [users, pros, pendingA, pendingC, pendingI, publishedA, publishedC, publishedI, reports, enrollments] = await Promise.all([
+  const [users, pros, pendingA, pendingC, pendingI, publishedA, publishedC, publishedI, reports, enrollments, pendingS] = await Promise.all([
     prisma.user.count({ where: { role: "UTILISATRICE" } }),
     prisma.user.count({ where: { role: { in: PRO_ROLES } } }),
     prisma.article.count({ where: { status: "A_VALIDER" } }),
@@ -53,11 +54,12 @@ router.get("/stats", async (_req, res) => {
     prisma.incomeActivity.count({ where: { status: "PUBLIE" } }),
     prisma.report.count({ where: { status: "OUVERT" } }),
     prisma.enrollment.count(),
+    prisma.story.count({ where: { status: "A_VALIDER" } }),
   ]);
   res.json({
     users,
     professionals: pros,
-    pending: { articles: pendingA, courses: pendingC, income: pendingI, total: pendingA + pendingC + pendingI },
+    pending: { articles: pendingA, courses: pendingC, income: pendingI, stories: pendingS, total: pendingA + pendingC + pendingI + pendingS },
     published: { articles: publishedA, courses: publishedC, income: publishedI },
     openReports: reports,
     enrollments,
@@ -178,16 +180,18 @@ router.post("/users/:id/reset-password", async (req: AuthRequest, res) => {
 // ---------------------------------------------------------------------------
 router.get("/queue", async (req, res) => {
   const status = (req.query.status as string) || "A_VALIDER";
-  const [articles, courses, income] = await Promise.all([
+  const [articles, courses, income, stories] = await Promise.all([
     prisma.article.findMany({ where: { status }, include: { author: true, category: true }, orderBy: { updatedAt: "desc" } }),
     prisma.course.findMany({ where: { status }, include: { author: true }, orderBy: { updatedAt: "desc" } }),
     prisma.incomeActivity.findMany({ where: { status }, include: { author: true }, orderBy: { updatedAt: "desc" } }),
+    prisma.story.findMany({ where: { status }, include: { chapters: { orderBy: { position: "asc" } } }, orderBy: { createdAt: "asc" } }),
   ]);
   const author = (a: any) => (a ? { fullName: a.fullName, profession: a.profession, photoUrl: a.photoUrl } : null);
   res.json([
     ...articles.map((a) => ({ type: "articles", id: a.id, title: a.titleFr, category: a.category.titleFr, body: a.bodyFr, status: a.status, reviewNote: a.reviewNote, sources: parseSources(a.sourcesJson), author: author(a.author) })),
     ...courses.map((c) => ({ type: "courses", id: c.id, title: c.title, category: "Formation", body: `${c.summary}\n\n${c.outlineMd}`, status: c.status, reviewNote: c.reviewNote, sources: parseSources(c.sourcesJson), author: author(c.author), partner: c.partner })),
     ...income.map((i) => ({ type: "income", id: i.id, title: i.title, category: `Revenu · dès ${i.capitalMinFcfa} FCFA`, body: `${i.summary}\n\nIl te faut :\n${i.needsMd}\n\nComment démarrer :\n${i.stepsMd}\n\nPrécautions :\n${i.risksMd}`, status: i.status, reviewNote: i.reviewNote, sources: parseSources(i.sourcesJson), author: author(i.author) })),
+    ...stories.map((st: any) => ({ type: "stories", id: st.id, title: st.title, category: `Histoire · ${st.category}`, body: `${st.summary}\n\n` + st.chapters.map((c: any) => `${c.title}\n${c.body}`).join("\n\n"), status: st.status, reviewNote: st.reviewNote, sources: [{ org: st.origin === "ORIGINALE" ? "Wali" : st.origin, title: st.credit, url: st.sourceUrl || "https://wali.naxaci.com" }], author: null })),
   ]);
 });
 
@@ -201,7 +205,7 @@ async function applyReview(actorId: string | undefined, type: string, id: string
   if (!model) throw new Error("Type inconnu.");
   const item = await model.findUnique({ where: { id } });
   if (!item) throw new Error("Contenu introuvable.");
-  if (decision === "approve" && parseSources(item.sourcesJson).length === 0) {
+  if (decision === "approve" && type !== "stories" && parseSources(item.sourcesJson).length === 0) {
     // Règle de sécurité : aucun contenu n'est publié sans au moins une source citée.
     throw new Error("Impossible de publier : aucune source n'est associée (ajoute-en une d'abord).");
   }

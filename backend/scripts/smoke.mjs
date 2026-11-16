@@ -57,6 +57,15 @@ const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJA
   r = await call("POST", "/auth/signup", { body: { email: "fille@test.org", password: "motdepasse1", pseudonyme: "fille_test", birthDate: "2003-04-12", acceptTerms: true, photo: PNG } });
   check("inscription utilisatrice", r.status === 201);
   const fille = r.data.token;
+  r = await call("GET", "/admin/queue?status=A_VALIDER", { token: admin });
+  const heroine = Array.isArray(r.data) ? r.data.find((x) => x.type === "stories" && x.title.includes("Nzinga")) : null;
+  check("admin : l'histoire de Nzinga attend la validation", !!heroine, JSON.stringify(r.data).slice(0, 120));
+  if (heroine) {
+    r = await call("POST", "/admin/review/stories/" + heroine.id, { token: admin, body: { decision: "approve" } });
+    check("admin : publie l'histoire", r.status === 200);
+    r = await call("GET", "/stories?category=HEROINE", { token: fille });
+    check("la lectrice voit l'histoire publiée", r.status === 200 && r.data.some((x) => x.slug === "nzinga-reine-du-ndongo"));
+  }
   check("pays par défaut = Centrafrique", r.data.user.country === "CF");
   r = await call("POST", "/auth/signup", { body: { email: "tchad@test.org", password: "motdepasse1", pseudonyme: "fille_tchad", birthDate: "2003-04-12", acceptTerms: true, country: "TD", photo: PNG } });
   check("inscription avec pays Tchad", r.status === 201 && r.data.user.country === "TD");
