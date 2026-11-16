@@ -370,3 +370,16 @@ model CertTemplate {
   signersJson String   @default("[]")  // [{name,title,sigUrl}]
   createdAt   DateTime @default(now())
 }
+
+// Annonces / publicités qui défilent sur l'accueil de l'appli (préparées dans l'administration).
+model Announcement {
+  id        String    @id @default(uuid())
+  emoji     String    @default("📣")
+  title     String
+  body      String    @default("")
+  color     String    @default("violet") // rose | violet | bleu | vert | jaune
+  target    String?   // écran à ouvrir au clic : Formations | Assistant | Games | Revenus | MonCarnet | Partager
+  active    Boolean   @default(true)
+  endsAt    DateTime?
+  createdAt DateTime  @default(now())
+}

@@ -369,6 +369,29 @@ router.patch("/courses/:id/template", async (req: AuthRequest, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Annonces (publicités) de l'accueil
+// ---------------------------------------------------------------------------
+const annBody = z.object({
+  emoji: z.string().max(8).optional(), title: z.string().min(2).max(60), body: z.string().max(140).optional(),
+  color: z.enum(["rose", "violet", "bleu", "vert", "jaune"]).optional(), target: z.string().max(30).nullable().optional(),
+  active: z.boolean().optional(), endsAt: z.string().datetime().nullable().optional(),
+});
+router.get("/announcements", async (_req, res) => { res.json(await prisma.announcement.findMany({ orderBy: { createdAt: "desc" } })); });
+router.post("/announcements", async (req: AuthRequest, res) => {
+  const p = annBody.safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: "Titre (2 à 60 lettres) obligatoire." });
+  const a = await prisma.announcement.create({ data: { ...p.data, endsAt: p.data.endsAt ? new Date(p.data.endsAt) : null } });
+  await audit(req.userId, "CREATE_ANNOUNCEMENT", a.title); res.status(201).json(a);
+});
+router.patch("/announcements/:id", async (req: AuthRequest, res) => {
+  const p = annBody.partial().safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: "Données invalides." });
+  const a = await prisma.announcement.update({ where: { id: req.params.id }, data: { ...p.data, endsAt: p.data.endsAt ? new Date(p.data.endsAt) : p.data.endsAt === null ? null : undefined } });
+  res.json(a);
+});
+router.delete("/announcements/:id", async (req, res) => { await prisma.announcement.delete({ where: { id: req.params.id } }).catch(() => undefined); res.json({ ok: true }); });
+
+// ---------------------------------------------------------------------------
 // Signalements du forum + journal
 // ---------------------------------------------------------------------------
 router.get("/reports", async (_req, res) => {

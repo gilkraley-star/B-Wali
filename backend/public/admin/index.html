@@ -66,9 +66,9 @@
     try {
       var res = await Promise.all([
         api("/admin/stats"), api("/admin/queue?status=" + state.filter), api("/admin/users"),
-        api("/admin/courses"), api("/admin/reports"), api("/admin/audit"), api("/admin/reported-users"), api("/admin/cert-templates")
+        api("/admin/courses"), api("/admin/reports"), api("/admin/audit"), api("/admin/reported-users"), api("/admin/cert-templates"), api("/admin/announcements")
       ]);
-      state.stats = res[0]; state.queue = res[1]; state.users = res[2]; state.courses = res[3]; state.reports = res[4]; state.audit = res[5]; state.reported = res[6]; state.tpls = res[7];
+      state.stats = res[0]; state.queue = res[1]; state.users = res[2]; state.courses = res[3]; state.reports = res[4]; state.audit = res[5]; state.reported = res[6]; state.tpls = res[7]; state.anns = res[8];
     } catch(e){ if (token) flash(e.message, "err"); return; }
     render();
   }
@@ -90,7 +90,7 @@
     };
   }
 
-  var TABS = [["dash","Tableau de bord"],["queue","À valider"],["users","Comptes pro"],["courses","Formations"],["certs","Attestations"],["reports","Signalements"],["audit","Journal"]];
+  var TABS = [["dash","Tableau de bord"],["queue","À valider"],["users","Comptes pro"],["courses","Formations"],["certs","Attestations"],["ann","Annonces"],["reports","Signalements"],["audit","Journal"]];
 
   function render(){
     if (!token) return loginView();
@@ -98,7 +98,7 @@
     var html = '<header><h1><img src="logo.png" alt="" style="height:34px;vertical-align:middle;margin-right:10px">Bê Wali · Administration</h1><button id="out">Se déconnecter</button></header><nav>' +
       TABS.map(function(t){ return '<button data-t="'+t[0]+'" class="'+(state.tab===t[0]?'on':'')+'">'+t[1]+(t[0]==="queue"&&pending?' ('+pending+')':'')+'</button>'; }).join("") + '</nav><main>';
     if (state.msg) html += '<div class="msg '+state.msg.kind+'">'+esc(state.msg.text)+'</div>';
-    html += ({dash:dash, queue:queueView, users:usersView, courses:coursesView, certs:certsView, reports:reportsView, audit:auditView}[state.tab])();
+    html += ({dash:dash, queue:queueView, users:usersView, courses:coursesView, certs:certsView, ann:annView, reports:reportsView, audit:auditView}[state.tab])();
     html += '</main>';
     app.innerHTML = html;
     document.getElementById("out").onclick = logout;
@@ -192,6 +192,23 @@
       h += '<div class="row" style="margin-top:10px"><button data-savetpl="'+t.id+'">💾 Enregistrer le modèle</button></div></div>';
     });
     return h;
+  }
+
+
+  var COLS = {rose:"Rose", violet:"Violet", bleu:"Bleu", vert:"Vert", jaune:"Jaune"};
+  var TARGETS = [["","Aucun (juste informer)"],["Formations","Formations"],["Assistant","Conseillère IA"],["Games","Jeux"],["Revenus","Gagner un revenu"],["MonCarnet","Mon Carnet"],["Partager","Inviter une amie"]];
+  function annView(){
+    var h = '<p><small>Ces annonces défilent sur l\'accueil des filles, après la carte « Tes prochaines règles » (qui reste toujours prioritaire). Maximum 5 affichées. Utilise-les pour annoncer une formation, un événement ou un message important.</small></p>';
+    h += '<div class="card"><b>Nouvelle annonce</b><div class="row" style="margin-top:8px"><input id="a_emoji" placeholder="Emoji" style="max-width:70px" value="📣"><input id="a_title" placeholder="Titre (60 lettres max)" class="grow"></div>' +
+      '<div class="row" style="margin-top:8px"><input id="a_body" placeholder="Texte court (140 lettres max)" class="grow"></div>' +
+      '<div class="row" style="margin-top:8px"><select id="a_color">'+Object.keys(COLS).map(function(k){return '<option value="'+k+'">'+COLS[k]+'</option>';}).join("")+'</select>' +
+      '<select id="a_target">'+TARGETS.map(function(t){return '<option value="'+t[0]+'">Au clic : '+t[1]+'</option>';}).join("")+'</select>' +
+      '<small>Fin :</small><input type="date" id="a_end" style="max-width:160px"><button id="a_go">Publier</button></div></div>';
+    (state.anns || []).forEach(function(a){
+      h += '<div class="card"><div class="row"><div class="grow"><b>'+esc(a.emoji)+' '+esc(a.title)+'</b><br><small>'+esc(a.body||"")+' · '+esc(COLS[a.color]||a.color)+(a.target?' · ouvre '+esc(a.target):'')+(a.endsAt?' · jusqu\'au '+new Date(a.endsAt).toLocaleDateString("fr-FR"):'')+' · '+(a.active?'🟢 visible':'⚪ cachée')+'</small></div>' +
+        '<button class="s" data-annact="'+a.id+'" data-v="'+(!a.active)+'">'+(a.active?'Cacher':'Montrer')+'</button><button class="bad" data-anndel="'+a.id+'">Supprimer</button></div></div>';
+    });
+    return h || '';
   }
 
   var RS = {HAINE:"Message haineux",RACISME:"Racisme",HARCELEMENT:"Harcèlement",VIOLENCE:"Menaces / violence",SEXUEL:"Contenu sexuel",PROFIL_SUSPECT:"Profil suspect",ARNAQUE:"Arnaque",SPAM:"Spam",AUTRE:"Autre"};
@@ -295,6 +312,15 @@
       var bf = q('[data-bg]').files[0]; if (bf) body.bg = await fileToDataUrl(bf, 2000);
       await api("/admin/cert-templates/"+b.dataset.savetpl, {method:"PATCH", body:body}); flash("Modèle enregistré. Clique sur « Aperçu » pour vérifier."); await load();
     }); });
+
+    var ago = document.getElementById("a_go");
+    if (ago) ago.onclick = act(async function(){
+      var e = document.getElementById("a_end").value;
+      await api("/admin/announcements", {method:"POST", body:{emoji:v("a_emoji")||"📣", title:v("a_title"), body:v("a_body"), color:document.getElementById("a_color").value, target:document.getElementById("a_target").value||null, endsAt: e ? new Date(e+"T23:59:00").toISOString() : null}});
+      flash("Annonce publiée : elle défile sur l'accueil."); await load();
+    });
+    $$("[data-annact]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/announcements/"+b.dataset.annact, {method:"PATCH", body:{active:b.dataset.v==="true"}}); await load(); }); });
+    $$("[data-anndel]").forEach(function(b){ b.onclick = act(async function(){ if(!confirm("Supprimer cette annonce ?")) return; await api("/admin/announcements/"+b.dataset.anndel, {method:"DELETE"}); await load(); }); });
     function dt(id){ var el = app.querySelector('[data-dt="'+id+'"]'); if (!el || !el.value) throw new Error("Choisis d'abord une date et une heure."); return new Date(el.value).toISOString(); }
     $$("[data-sched]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/courses/"+b.dataset.sched+"/schedule", {method:"PATCH", body:{startsAt: dt(b.dataset.sched), state:"OUVERT"}}); flash("Date programmée."); await load(); }); });
     $$("[data-post]").forEach(function(b){ b.onclick = act(async function(){ var why = prompt("Motif interne (non visible des filles) :") || ""; await api("/admin/courses/"+b.dataset.post+"/schedule", {method:"PATCH", body:{postponedTo: dt(b.dataset.post), state:"REPORTEE", internalReason: why}}); flash("Session reportée. Les filles verront : formatrice indisponible + nouvelle date."); await load(); }); });

@@ -145,6 +145,13 @@ router.get("/courses/:slug/certificate", requireAuth, async (req: AuthRequest, r
   res.json({ pdf: Buffer.from(pdf).toString("base64"), fileName: `Attestation-${e.certificateNo}.pdf` });
 });
 
+// GET /api/catalog/announcements — annonces actives pour le défilement de l'accueil
+router.get("/announcements", requireAuth, async (_req, res) => {
+  const now = new Date();
+  const list = await prisma.announcement.findMany({ where: { active: true, OR: [{ endsAt: null }, { endsAt: { gt: now } }] }, orderBy: { createdAt: "desc" }, take: 5 });
+  res.json(list.map((a) => ({ id: a.id, emoji: a.emoji, title: a.title, body: a.body, color: a.color, target: a.target })));
+});
+
 // GET /api/catalog/income — activités génératrices de revenus publiées
 router.get("/income", async (_req, res) => {
   const list = await prisma.incomeActivity.findMany({

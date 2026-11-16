@@ -4,6 +4,7 @@ import { apiRequest } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
 import { colors, radius, spacing } from "../theme/colors";
+import HomeCarousel from "../components/HomeCarousel";
 import PendingNotice from "../components/PendingNotice";
 import { Card, ScreenTitle } from "../theme/ui";
 
@@ -29,16 +30,7 @@ export default function HomeScreen({ navigation }: any) {
       </Text>
       <ScreenTitle>{t("app_name")}</ScreenTitle>
 
-      <Card>
-        <Text style={styles.cardLabel}>{t("home_next_period")}</Text>
-        {estimate?.nextEstimatedStart ? (
-          <Text style={styles.estimateDate}>
-            {new Date(estimate.nextEstimatedStart).toLocaleDateString("fr-FR")}
-          </Text>
-        ) : (
-          <Text style={styles.muted}>{t("home_no_data")}</Text>
-        )}
-      </Card>
+      <HomeCarousel nextPeriod={estimate?.nextEstimatedStart} navigation={navigation} />
 
       <Text style={styles.sectionHeader}>{t("home_quick_actions")}</Text>
       <View style={styles.grid}>
