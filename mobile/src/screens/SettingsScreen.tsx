@@ -59,12 +59,6 @@ export default function SettingsScreen() {
           <Text style={lang === "fr" ? styles.langTextActive : styles.langText}>Français</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.langButton, lang === "sg" && styles.langButtonActive]}
-          onPress={() => setLang("sg")}
-        >
-          <Text style={lang === "sg" ? styles.langTextActive : styles.langText}>Sängö</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
           style={[styles.langButton, lang === "en" && styles.langButtonActive]}
           onPress={() => setLang("en")}
         >

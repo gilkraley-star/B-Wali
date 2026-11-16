@@ -8,13 +8,13 @@ import { FadeUp, Float } from "../components/anim";
 // Écran de bienvenue (maquette Onboarding) : fond rosé dégradé, logo, titre, boutons. La pastille de langue passe FR → SG → EN.
 export default function OnboardingScreen({ navigation }: any) {
   const { t, lang, setLang } = useI18n();
-  const next = lang === "fr" ? "sg" : lang === "sg" ? "en" : "fr";
+  const next = lang === "fr" ? "en" : "fr";
   return (
     <LinearGradient colors={["#FFF6F0", "#FFE3E8"]} style={{ flex: 1 }}>
       <Float style={[s.blob, { top: -60, right: -50, width: 200, height: 200, borderRadius: 100, backgroundColor: "#FFD6DD", opacity: 0.6 }]} />
       <Float delay={3000} style={[s.blob, { bottom: 160, left: -70, width: 170, height: 170, borderRadius: 85, backgroundColor: "#E7D5FF", opacity: 0.45 }]} />
       <SafeAreaView style={{ flex: 1, justifyContent: "space-between" }}>
-        <TouchableOpacity style={s.lang} onPress={() => setLang(next)} accessibilityLabel="Changer de langue"><Text style={s.langT}>{lang === "fr" ? "FR" : lang === "sg" ? "SG" : "EN"}</Text></TouchableOpacity>
+        <TouchableOpacity style={s.lang} onPress={() => setLang(next)} accessibilityLabel="Changer de langue"><Text style={s.langT}>{lang === "fr" ? "FR" : "EN"}</Text></TouchableOpacity>
         <View style={s.content}>
           <FadeUp delay={50}><View style={s.logoCard}><Image source={require("../../assets/logo.png")} style={s.logo} resizeMode="contain" accessibilityLabel="Wali" /></View></FadeUp>
           <FadeUp delay={150}><Text style={s.title}>{t("onboarding_welcome").replace(/ (sur|on) /, " $1\n")}</Text></FadeUp>

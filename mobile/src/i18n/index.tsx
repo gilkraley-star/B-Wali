@@ -1,12 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fr, TranslationKeys } from "./fr";
-import { sg } from "./sg";
 import { en } from "./en";
 
-export type Lang = "fr" | "sg" | "en";
+export type Lang = "fr" | "en";
 
-const dictionaries: Record<Lang, Record<string, string>> = { fr, sg, en };
+const dictionaries: Record<Lang, Record<string, string>> = { fr, en };
 
 interface I18nContextValue {
   lang: Lang;
@@ -23,7 +22,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     AsyncStorage.getItem(LANG_STORAGE_KEY).then((stored) => {
-      if (stored === "fr" || stored === "sg" || stored === "en") setLangState(stored);
+      if (stored === "fr" || stored === "en") setLangState(stored);
     });
   }, []);
 
