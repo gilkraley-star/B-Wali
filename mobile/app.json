@@ -7,7 +7,9 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "backgroundColor": "#FFF5F4"
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FDF7F6"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -15,7 +17,8 @@
     "android": {
       "package": "org.naxaci.bewali",
       "adaptiveIcon": {
-        "backgroundColor": "#FFF5F4"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FDF7F6"
       },
       "permissions": [
         "READ_EXTERNAL_STORAGE"
