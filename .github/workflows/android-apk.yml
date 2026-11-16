@@ -7,6 +7,9 @@ on:
   push:
     tags: ["v*"]
 
+permissions:
+  contents: write # pour publier l'APK dans « Releases »
+
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -37,3 +40,12 @@ jobs:
         with:
           name: bewali-android-apk
           path: mobile/android/app/build/outputs/apk/release/*.apk
+      - name: Publier l'APK dans Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp mobile/android/app/build/outputs/apk/release/*.apk BeWali.apk
+          gh release create "apk-${{ github.run_number }}" BeWali.apk \
+            --title "Bê Wali — APK (build ${{ github.run_number }})" \
+            --notes "APK de test pour Android. Ouvre cette page sur ton téléphone, télécharge BeWali.apk et installe-le (autorise « sources inconnues » si le téléphone le demande)." \
+            --repo "${{ github.repository }}"
