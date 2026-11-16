@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FDF7F6"
+      "backgroundColor": "#FCF6F6"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -18,7 +18,7 @@
       "package": "org.naxaci.bewali",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FDF7F6"
+        "backgroundColor": "#FCF6F6"
       },
       "permissions": [
         "ACCESS_NETWORK_STATE",
