@@ -37,7 +37,7 @@ export default function HomeScreen({ navigation }: any) {
         <TouchableOpacity style={s.sos} onPress={() => navigation.navigate("Urgence")} accessibilityRole="button" accessibilityLabel="SOS urgence"><Text style={s.sosT}>SOS</Text></TouchableOpacity>
       </Pulse>
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 26, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 26, paddingBottom: 12 }} showsVerticalScrollIndicator={false}>
         <PendingNotice />
         <FadeUp delay={30} style={s.head}>
           <View style={s.logo}><Image source={require("../../assets/logo-emblem.png")} style={{ width: 34, height: 34 }} resizeMode="contain" /></View>
@@ -47,9 +47,9 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         </FadeUp>
 
-        <FadeUp delay={100} style={{ marginTop: 8 }}><HomeCarousel nextPeriod={estimate?.nextEstimatedStart} navigation={navigation} /></FadeUp>
+        <FadeUp delay={100} style={{ marginTop: 14 }}><HomeCarousel nextPeriod={estimate?.nextEstimatedStart} navigation={navigation} /></FadeUp>
 
-        <FadeUp delay={170} style={{ marginTop: 8 }}>
+        <FadeUp delay={170} style={{ marginTop: 14 }}>
           <TouchableOpacity style={s.advisor} onPress={() => navigation.navigate("Assistant")} accessibilityRole="button" activeOpacity={0.9}>
             <Wiggle style={s.spark}><Text style={{ fontSize: 25 }}>✨</Text></Wiggle>
             <View style={{ flex: 1 }}>
@@ -99,13 +99,13 @@ const s = StyleSheet.create({
   spark: { width: 46, height: 46, borderRadius: 16, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
   advT: { fontSize: 15, fontFamily: "Poppins_800ExtraBold", color: "#3B1D33" }, advS: { fontSize: 12, color: "#5E4A2A", marginTop: 1, fontFamily: "Inter_400Regular" },
   chev: { width: 30, height: 30, borderRadius: 15, backgroundColor: "#3B1D33", alignItems: "center", justifyContent: "center" },
-  q: { fontFamily: "Poppins_700Bold", fontSize: 16, color: "#3B1D33", marginTop: 18, marginBottom: 10, marginLeft: 2 },
+  q: { fontFamily: "Poppins_700Bold", fontSize: 16, color: "#3B1D33", marginTop: 20, marginBottom: 6, marginLeft: 2 },
   grid: { flexDirection: "row", flexWrap: "wrap", marginHorizontal: -5 },
   cell: { width: "33.333%", padding: 5 },
   tile: { borderRadius: 24, paddingTop: 14, paddingBottom: 12, paddingHorizontal: 6, alignItems: "center" },
   ico: { width: 46, height: 46, borderRadius: 23, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", shadowColor: "#3B1D33", shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   tileT: { fontSize: 12, fontFamily: "Inter_700Bold", color: "#3B1D33", textAlign: "center", marginTop: 8, lineHeight: 15 },
-  invite: { backgroundColor: "#C9F0DC", borderRadius: 999, paddingVertical: 13, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, marginTop: 5 },
+  invite: { backgroundColor: "#C9F0DC", borderRadius: 999, paddingVertical: 13, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, marginTop: 4 },
   inviteT: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#1E5B3E" },
   pro: { flex: 1, backgroundColor: "#fff", borderRadius: 999, paddingVertical: 11, alignItems: "center" }, proT: { fontFamily: "Inter_700Bold", color: "#3B1D33", fontSize: 13 },
 });

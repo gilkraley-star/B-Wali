@@ -87,11 +87,11 @@ export default function HomeCarousel({ nextPeriod, navigation }: { nextPeriod: s
   };
 
   return (
-    <View style={{ marginBottom: 6 }}>
-      <Animated.ScrollView ref={scroller} horizontal showsHorizontalScrollIndicator={false} snapToInterval={W + GAP} decelerationRate="fast" scrollEventThrottle={16}
+    <View>
+      <Animated.ScrollView ref={scroller} style={{ flexGrow: 0, height: 134 }} horizontal showsHorizontalScrollIndicator={false} snapToInterval={W + GAP} decelerationRate="fast" scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { x } } }], { useNativeDriver: true })}
         onScrollBeginDrag={() => { touching.current = true; }} onMomentumScrollEnd={onEnd}
-        contentContainerStyle={{ paddingVertical: 6 }}>
+        contentContainerStyle={{ paddingVertical: 0 }}>
         {slides.map((s, i) => {
           const r = [(i - 1) * (W + GAP), i * (W + GAP), (i + 1) * (W + GAP)];
           const scale = x.interpolate({ inputRange: r, outputRange: [0.94, 1, 0.94], extrapolate: "clamp" });
@@ -103,8 +103,8 @@ export default function HomeCarousel({ nextPeriod, navigation }: { nextPeriod: s
                 <View style={st.blob1} /><View style={st.blob2} />
                 <Animated.View style={{ transform: [{ translateX: shift }] }}>
                   <Text style={st.label}>{s.emoji} {s.title}</Text>
-                  {s.big ? <Text style={st.big} numberOfLines={2}>{s.big}</Text> : null}
-                  {s.sub ? <Text style={st.sub} numberOfLines={2}>{s.sub}</Text> : null}
+                  {s.big ? <Text style={[st.big, !s.priority && { fontSize: 21, lineHeight: 26 }]} numberOfLines={1}>{s.big}</Text> : null}
+                  {s.sub ? <Text style={st.sub} numberOfLines={s.big ? 1 : 2}>{s.sub}</Text> : null}
                   {s.button && s.target ? <TouchableOpacity style={st.btn} onPress={() => navigation.navigate(s.target)}><Text style={[st.btnT, { color: s.colors[0] }]}>{s.button}</Text></TouchableOpacity> : null}
                 </Animated.View>
               </LinearGradient>
@@ -112,10 +112,10 @@ export default function HomeCarousel({ nextPeriod, navigation }: { nextPeriod: s
         })}
       </Animated.ScrollView>
       {slides.length > 1 && (
-        <View style={st.dots}>
+        <View style={st.dots} pointerEvents="none">
           {slides.map((s, i) => {
             const r = [(i - 1) * (W + GAP), i * (W + GAP), (i + 1) * (W + GAP)];
-            return <Animated.View key={s.key} style={[st.dot, { width: x.interpolate({ inputRange: r, outputRange: [7, 20, 7], extrapolate: "clamp" }), opacity: x.interpolate({ inputRange: r, outputRange: [0.35, 1, 0.35], extrapolate: "clamp" }) }]} />;
+            return <Animated.View key={s.key} style={[st.dot, { width: x.interpolate({ inputRange: r, outputRange: [5, 14, 5], extrapolate: "clamp" }), opacity: x.interpolate({ inputRange: r, outputRange: [0.5, 1, 0.5], extrapolate: "clamp" }) }]} />;
           })}
         </View>)}
     </View>
@@ -123,12 +123,12 @@ export default function HomeCarousel({ nextPeriod, navigation }: { nextPeriod: s
 }
 
 const st = StyleSheet.create({
-  card: { borderRadius: 28, paddingVertical: 20, paddingHorizontal: 22, minHeight: 140, overflow: "hidden", justifyContent: "center" },
+  card: { borderRadius: 28, paddingVertical: 20, paddingHorizontal: 22, height: 134, overflow: "hidden", justifyContent: "center" },
   blob1: { position: "absolute", right: -30, top: -30, width: 130, height: 130, borderRadius: 65, backgroundColor: "rgba(255,255,255,0.18)" },
   blob2: { position: "absolute", right: 30, bottom: -40, width: 90, height: 90, borderRadius: 45, backgroundColor: "rgba(255,255,255,0.14)" },
   label: { color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 13, opacity: 0.92, marginBottom: 4 },
   big: { color: "#fff", fontFamily: "Poppins_800ExtraBold", fontSize: 27, lineHeight: 30 },
   sub: { color: "#fff", fontSize: 13, marginTop: 6, opacity: 0.95, lineHeight: 18, fontFamily: "Inter_400Regular" },
   btn: { alignSelf: "flex-start", backgroundColor: "#fff", borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8, marginTop: 12 }, btnT: { fontFamily: "Inter_700Bold", fontSize: 12.5 },
-  dots: { flexDirection: "row", justifyContent: "center", gap: 6, marginTop: 4 }, dot: { height: 7, borderRadius: 4, backgroundColor: "#FF5470" },
+  dots: { position: "absolute", left: 0, right: 0, bottom: 9, flexDirection: "row", justifyContent: "center", gap: 5 }, dot: { height: 5, borderRadius: 3, backgroundColor: "#fff" },
 });
