@@ -27,6 +27,9 @@ import CourseScreen from "../screens/CourseScreen";
 import TestScreen from "../screens/TestScreen";
 import MonCarnetScreen from "../screens/MonCarnetScreen";
 import CarnetScreen from "../screens/CarnetScreen";
+import FloatingTabBar from "./FloatingTabBar";
+import JeunesMamansScreen from "../screens/JeunesMamansScreen";
+import CentresScreen from "../screens/CentresScreen";
 import LiveScreen from "../screens/LiveScreen";
 import FormationsScreen from "../screens/FormationsScreen";
 import RevenusScreen from "../screens/RevenusScreen";
@@ -85,6 +88,7 @@ function MainTabs() {
   const { t } = useI18n();
   return (
     <Tabs.Navigator
+      tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.rose,
@@ -134,6 +138,8 @@ export default function AppNavigator() {
             <RootStack.Screen name="Test" component={TestScreen} options={{ headerShown: true, title: "Test" }} />
             <RootStack.Screen name="MonCarnet" component={MonCarnetScreen} options={{ headerShown: true, title: "Mon Carnet" }} />
             <RootStack.Screen name="Carnet" component={CarnetScreen} options={{ headerShown: true, title: "" }} />
+            <RootStack.Screen name="JeunesMamans" component={JeunesMamansScreen} options={{ headerShown: true, title: "Jeunes mamans" }} />
+            <RootStack.Screen name="Centres" component={CentresScreen} options={{ headerShown: true, title: "Centres de santé" }} />
             <RootStack.Screen name="Live" component={LiveScreen} options={{ headerShown: false }} />
             <RootStack.Screen name="Formations" component={FormationsScreen} options={{ headerShown: true, title: "Formations" }} />
             <RootStack.Screen name="Partager" component={ShareScreen} options={{ headerShown: true, title: "Inviter une amie" }} />

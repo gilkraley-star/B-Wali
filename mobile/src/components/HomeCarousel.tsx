@@ -11,7 +11,7 @@ interface Slide { key: string; emoji: string; title: string; big?: string; sub?:
 const PALETTE: Record<string, [string, string]> = {
   rose: ["#FF5470", "#FF8A5B"], violet: ["#7B4AE2", "#B07CFF"], bleu: ["#2F80ED", "#56CCF2"], vert: ["#27AE60", "#6FCF97"], jaune: ["#F2994A", "#F2C94C"],
 };
-const W = Dimensions.get("window").width - 48;
+const W = Dimensions.get("window").width - 40;
 const GAP = 12;
 
 const MONTHS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
@@ -123,12 +123,12 @@ export default function HomeCarousel({ nextPeriod, navigation }: { nextPeriod: s
 }
 
 const st = StyleSheet.create({
-  card: { borderRadius: 28, padding: 22, minHeight: 150, overflow: "hidden", justifyContent: "center" },
+  card: { borderRadius: 28, paddingVertical: 20, paddingHorizontal: 22, minHeight: 140, overflow: "hidden", justifyContent: "center" },
   blob1: { position: "absolute", right: -30, top: -30, width: 130, height: 130, borderRadius: 65, backgroundColor: "rgba(255,255,255,0.18)" },
   blob2: { position: "absolute", right: 30, bottom: -40, width: 90, height: 90, borderRadius: 45, backgroundColor: "rgba(255,255,255,0.14)" },
-  label: { color: "#fff", fontWeight: "700", fontSize: 14, opacity: 0.95 },
-  big: { color: "#fff", fontWeight: "800", fontSize: 26, marginTop: 6, lineHeight: 31 },
-  sub: { color: "#fff", fontSize: 13, marginTop: 6, opacity: 0.95, lineHeight: 18 },
-  btn: { alignSelf: "flex-start", backgroundColor: "#fff", borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9, marginTop: 14 }, btnT: { fontWeight: "800", fontSize: 13 },
+  label: { color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 13, opacity: 0.92, marginBottom: 4 },
+  big: { color: "#fff", fontFamily: "Poppins_800ExtraBold", fontSize: 27, lineHeight: 30 },
+  sub: { color: "#fff", fontSize: 13, marginTop: 6, opacity: 0.95, lineHeight: 18, fontFamily: "Inter_400Regular" },
+  btn: { alignSelf: "flex-start", backgroundColor: "#fff", borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8, marginTop: 12 }, btnT: { fontFamily: "Inter_700Bold", fontSize: 12.5 },
   dots: { flexDirection: "row", justifyContent: "center", gap: 6, marginTop: 4 }, dot: { height: 7, borderRadius: 4, backgroundColor: "#FF5470" },
 });
