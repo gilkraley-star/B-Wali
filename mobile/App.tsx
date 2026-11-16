@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import "./src/theme/font";
 import { useFonts } from "expo-font";
 import { Poppins_600SemiBold, Poppins_700Bold, Poppins_800ExtraBold } from "@expo-google-fonts/poppins";
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";

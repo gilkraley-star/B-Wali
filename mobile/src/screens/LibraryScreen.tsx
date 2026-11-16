@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { apiRequest, ApiError } from "../api/client";
 import { cacheSavedArticles, getCachedSavedArticles } from "../storage/offlineStorage";
 import { useI18n } from "../i18n";
@@ -59,7 +59,7 @@ export default function LibraryScreen({ navigation }: any) {
           <ScreenTitle>{t("library_title")}</ScreenTitle>
           {offline && <Text style={styles.offlineBadge}>{t("offline_notice")}</Text>}
           <Text style={styles.sectionHeader}>{t("library_categories")}</Text>
-          <View style={styles.chipsRow}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow} style={{ marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg, flexGrow: 0 }}>
             <TouchableOpacity
               style={[styles.chip, !selectedCategory && styles.chipActive]}
               onPress={() => setSelectedCategory(null)}
@@ -77,7 +77,7 @@ export default function LibraryScreen({ navigation }: any) {
                 </Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         </View>
       }
       renderItem={({ item }) => (
@@ -95,7 +95,7 @@ export default function LibraryScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   sectionHeader: { fontSize: 14, color: colors.textMuted, marginBottom: spacing.xs, textTransform: "uppercase" },
-  chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginBottom: spacing.md },
+  chipsRow: { flexDirection: "row", gap: spacing.sm, paddingRight: spacing.xl, marginBottom: spacing.md },
   chip: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   chipActive: { backgroundColor: colors.corail, borderColor: colors.corail },
   chipText: { color: colors.text, fontSize: 13 },

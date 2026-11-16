@@ -56,7 +56,7 @@ export function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 export function TextInput(props: TextInputProps) {
-  return <RNTextInput placeholderTextColor={colors.textMuted} style={styles.input} {...props} />;
+  return <RNTextInput placeholderTextColor={colors.textMuted} {...props} style={[styles.input, props.style]} />;
 }
 
 export function Card({ children, style }: { children: React.ReactNode; style?: any }) {

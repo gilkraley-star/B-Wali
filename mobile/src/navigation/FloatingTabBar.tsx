@@ -1,5 +1,5 @@
-import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Keyboard, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 // Barre du bas de la maquette : une pastille blanche flottante, l'onglet actif en rose avec son nom.
 const TABS: Record<string, { e: string; label: string }> = {
@@ -7,6 +7,12 @@ const TABS: Record<string, { e: string; label: string }> = {
   Forum: { e: "💬", label: "Entre Nous" }, Settings: { e: "⚙️", label: "Réglages" },
 };
 export default function FloatingTabBar({ state, navigation }: any) {
+  const [kb, setKb] = useState(false);
+  useEffect(() => {
+    const a = Keyboard.addListener("keyboardDidShow", () => setKb(true)); const b = Keyboard.addListener("keyboardDidHide", () => setKb(false));
+    return () => { a.remove(); b.remove(); };
+  }, []);
+  if (kb) return null; // le clavier est ouvert : la barre ne cache plus le texte
   return (
     <View style={s.wrap}>
       <View style={s.bar}>
