@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { registerGlobals } from "@livekit/react-native";
 
 registerGlobals();
@@ -11,9 +11,16 @@ import { AuthProvider } from "./src/context/AuthContext";
 import { I18nProvider } from "./src/i18n";
 import { NetProvider } from "./src/context/NetContext";
 import AppNavigator from "./src/navigation/AppNavigator";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { AppIntro } from "./src/components/Intro";
 
 export default function App() {
   const [fontsLoaded] = useFonts({ Poppins_600SemiBold, Poppins_700Bold, Poppins_800ExtraBold, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
+  const [intro, setIntro] = useState<null | "long" | "short" | "done">(null);
+  useEffect(() => { (async () => {
+    let seen = null; try { seen = await AsyncStorage.getItem("wali.introSeen"); await AsyncStorage.setItem("wali.introSeen", "1"); } catch {}
+    setIntro(seen ? "short" : "long");
+  })(); }, []);
   if (!fontsLoaded) return null;
   return (
     <SafeAreaProvider>
@@ -22,6 +29,7 @@ export default function App() {
           <NetProvider>
             <StatusBar style="dark" />
             <AppNavigator />
+            {intro === "long" || intro === "short" ? <AppIntro long={intro === "long"} onDone={() => setIntro("done")} /> : null}
           </NetProvider>
         </AuthProvider>
       </I18nProvider>

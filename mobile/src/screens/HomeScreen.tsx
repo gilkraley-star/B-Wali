@@ -1,4 +1,6 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { WelcomeBurst } from "../components/Intro";
 import { useFocusEffect } from "@react-navigation/native";
 import { estimateLocal, getCycleLen, loadLocalPeriods } from "../storage/localCycle";
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -33,6 +35,8 @@ export default function HomeScreen({ navigation }: any) {
       apiRequest<Estimate>("/cycle/estimate", { silent: true }).then(setEstimate).catch(() => {});
     })();
   }, []));
+  const [welcome, setWelcome] = useState<string | null>(null);
+  useEffect(() => { (async () => { try { const w = await AsyncStorage.getItem("wali.welcome"); if (w) { await AsyncStorage.removeItem("wali.welcome"); setWelcome(w); } } catch {} })(); }, []);
   const isPro = ["PROFESSIONNELLE", "COACH", "FORMATRICE"].includes(user?.role || "");
 
   return (
@@ -89,6 +93,7 @@ export default function HomeScreen({ navigation }: any) {
             {user?.role === "ADMIN" && <TouchableOpacity style={s.pro} onPress={() => navigation.navigate("Admin")}><Text style={s.proT}>🛠️ Administration</Text></TouchableOpacity>}
           </View>)}
       </ScrollView>
+      {welcome ? <WelcomeBurst name={welcome} onDone={() => setWelcome(null)} /> : null}
     </View>
   );
 }

@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useState } from "react";
 import { Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -58,8 +59,10 @@ export default function SignupScreen({ navigation }: any) {
     }
     setLoading(true);
     try {
+      try { await AsyncStorage.setItem("wali.welcome", pseudonyme); } catch {}
       await signup({ ...(byPhone ? { phone: contact } : { email: contact }), password, pseudonyme, birthDate, acceptTerms: true, photo: photo.dataUrl });
     } catch (e) {
+      try { await AsyncStorage.removeItem("wali.welcome"); } catch {}
       setError(e instanceof ApiError ? e.message : t("error_generic"));
     } finally {
       setLoading(false);
