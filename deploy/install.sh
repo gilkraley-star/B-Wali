@@ -32,6 +32,13 @@ CADDY_NETWORK=$NET
 ENV
 fi
 
+# Conseillère IA : clé OpenAI facultative (Entrée = on la mettra plus tard)
+if ! grep -q "^OPENAI_API_KEY=.\+" .env; then
+  read -r -s -p "Clé OpenAI pour la conseillère IA (invisible ; Entrée pour passer) : " OAI </dev/tty; echo
+  sed -i '/^OPENAI_API_KEY=/d' .env
+  echo "OPENAI_API_KEY=$OAI" >> .env
+fi
+
 # Direct (LiveKit) : clés créées une seule fois
 if ! grep -q "^LIVEKIT_API_KEY=" .env; then
   LK_KEY="bw$(openssl rand -hex 6)"; LK_SECRET="$(openssl rand -hex 24)"

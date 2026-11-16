@@ -56,6 +56,10 @@ export default function HomeScreen({ navigation }: any) {
         )}
         {user?.role === "ADMIN" && <QuickAction label="Administration" emoji="🛠️" onPress={() => navigation.navigate("Admin")} />}
       </View>
+      <TouchableOpacity style={styles.advisor} onPress={() => navigation.navigate("Assistant")} accessibilityRole="button">
+        <Text style={styles.advisorT}>✨ Pose-moi tes questions</Text>
+        <Text style={styles.advisorS}>Ta conseillère IA, en toute discrétion</Text>
+      </TouchableOpacity>
       <TouchableOpacity style={styles.sos} onPress={() => navigation.navigate("Urgence")} accessibilityRole="button">
         <Text style={styles.sosText}>SOS · Obtenir de l'aide immédiatement</Text>
       </TouchableOpacity>
@@ -73,6 +77,9 @@ function QuickAction({ label, emoji, onPress }: { label: string; emoji: string; 
 }
 
 const styles = StyleSheet.create({
+  advisor: { backgroundColor: "#FFD84D", borderRadius: 20, padding: 16, marginTop: 12 },
+  advisorT: { fontWeight: "800", fontSize: 16, color: "#3B1D33" },
+  advisorS: { color: "#3B1D33", marginTop: 2 },
   container: { flex: 1, backgroundColor: colors.background },
   greeting: { fontSize: 16, color: colors.rose, marginBottom: spacing.xs },
   cardLabel: { fontSize: 14, color: colors.textMuted, marginBottom: spacing.xs },
