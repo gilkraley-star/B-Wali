@@ -67,7 +67,7 @@ export const fr = {
   forum_post_body: "Ton message",
   forum_publish: "Publier",
   forum_pending_note:
-    "Ta publication sera visible après vérification par la modération, afin de garder un espace bienveillant pour toutes.",
+    "Ton message est publié tout de suite. Ici, on se respecte : pas d'insultes ni de haine. Les messages signalés par les filles sont cachés.",
   forum_comment: "Répondre",
   forum_report: "Signaler",
   forum_report_reason: "Explique pourquoi tu signales ce contenu",

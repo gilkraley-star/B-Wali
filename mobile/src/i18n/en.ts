@@ -60,7 +60,7 @@ export const en: Record<TranslationKeys, string> = {
   forum_post_title: "Title",
   forum_post_body: "Your message",
   forum_publish: "Publish",
-  forum_pending_note: "Your post will be visible after a check by the moderators, to keep a kind space for everyone.",
+  forum_pending_note: "Your post is published right away. Here we respect each other: no insults or hate. Posts reported by other girls are hidden.",
   forum_comment: "Reply",
   forum_report: "Report",
   forum_report_reason: "Tell us why you are reporting this",
