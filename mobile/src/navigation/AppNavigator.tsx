@@ -57,7 +57,7 @@ const LibraryStack = createNativeStackNavigator();
 const ForumStack = createNativeStackNavigator();
 
 const HomeTop = withTop(HomeScreen), SettingsTop = withTop(SettingsScreen), CycleTop = withTop(CycleScreen), LibraryTop = withTop(LibraryScreen), ForumTop = withTop(ForumScreen);
-const OnboardingTop = withTop(OnboardingScreen), LoginTop = withTop(LoginScreen), SignupTop = withTop(SignupScreen), RevenusTop = withTop(RevenusScreen);
+const OnboardingTop = withTop(OnboardingScreen), LoginTop = withTop(LoginScreen), SignupTop = withTop(SignupScreen), RevenusTop = withTop(RevenusScreen), ChangePwTop = withTop(ChangePasswordScreen), LiveTop = withTop(LiveScreen);
 
 function CycleStackNavigator() {
   return (
@@ -134,7 +134,7 @@ export default function AppNavigator() {
     <NavigationContainer>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {user && user.mustChangePassword ? (
-          <RootStack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+          <RootStack.Screen name="ChangePassword" component={ChangePwTop} />
         ) : user ? (
           <>
             <RootStack.Screen name="Main" component={MainTabs} />
@@ -146,7 +146,7 @@ export default function AppNavigator() {
             <RootStack.Screen name="Carnet" component={CarnetScreen} options={{ headerShown: true, title: "" }} />
             <RootStack.Screen name="JeunesMamans" component={JeunesMamansScreen} options={{ headerShown: true, title: "Jeunes mamans" }} />
             <RootStack.Screen name="Centres" component={CentresScreen} options={{ headerShown: true, title: "Centres de santé" }} />
-            <RootStack.Screen name="Live" component={LiveScreen} options={{ headerShown: false }} />
+            <RootStack.Screen name="Live" component={LiveTop} options={{ headerShown: false }} />
             <RootStack.Screen name="Formations" component={FormationsScreen} options={{ headerShown: true, title: "Formations" }} />
             <RootStack.Screen name="Partager" component={ShareScreen} options={{ headerShown: true, title: "Inviter une amie" }} />
             <RootStack.Screen name="Revenus" component={RevenusTop} options={{ headerShown: false }} />

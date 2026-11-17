@@ -22,15 +22,9 @@ export default function UrgenceScreen({ navigation }: any) {
           <Text style={styles.callNumber}>📞 {n.number}</Text>
         </TouchableOpacity>
       ))}
-      {NUMBERS.length ? <Card>
-        <Text style={styles.warn}>Ces numéros doivent être confirmés localement avant la diffusion de l'application. [À CONFIRMER AVANT LANCEMENT]</Text>
-      </Card> : null}
-      <Card>
-        <Text style={styles.h}>Pour ta sécurité</Text>
-        <Text style={styles.body}>Pense à effacer l'historique d'appels si quelqu'un peut voir ton téléphone. Les « espaces sûrs » pour femmes et filles offrent écoute, soins et aide juridique : demande l'adresse à une professionnelle.</Text>
-      </Card>
-      <TouchableOpacity onPress={() => navigation.navigate("Professionnelles")}>
-        <Text style={styles.link}>👩‍⚕️ Écrire à une professionnelle</Text>
+      <TouchableOpacity style={styles.pro} activeOpacity={0.85} onPress={() => navigation.navigate("Professionnelles")} accessibilityRole="button">
+        <Text style={styles.proT}>👩‍⚕️  Écrire à une professionnelle</Text>
+        <Text style={styles.proS}>Une sage-femme, psychologue ou conseillère te répond en toute confidentialité.</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -45,5 +39,6 @@ const styles = StyleSheet.create({
   warn: { color: "#7A5410", fontSize: 12 },
   h: { fontWeight: "700", color: colors.prune, marginBottom: 4 },
   body: { color: colors.text, lineHeight: 20 },
+  pro: { backgroundColor: colors.rose, borderRadius: 16, padding: spacing.md, marginTop: spacing.sm }, proT: { color: "#fff", fontSize: 18, fontWeight: "800" }, proS: { color: "#fff", marginTop: 4, lineHeight: 19 },
   link: { color: "#15609E", fontWeight: "700", marginTop: spacing.md },
 });

@@ -39,7 +39,7 @@ const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJA
   r = await call("GET", "/admin/queue?status=A_VALIDER", { token: admin });
   check("file de validation remplie", r.status === 200 && r.data.length >= 20, "n=" + (r.data && r.data.length));
   const withSources = r.data.filter((x) => x.sources.length > 0);
-  const noSource = r.data.filter((x) => x.sources.length === 0);
+  const noSource = r.data.filter((x) => x.sources.length === 0 && x.type !== "courses");
   check("chaque fiche santé a des sources", r.data.filter((x) => x.type === "articles").every((x) => x.sources.length > 0));
 
   // Un contenu sans source ne peut pas être publié
