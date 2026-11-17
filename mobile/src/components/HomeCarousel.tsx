@@ -115,7 +115,7 @@ export default function HomeCarousel({ nextPeriod, navigation }: { nextPeriod: s
         <View style={st.dots} pointerEvents="none">
           {slides.map((s, i) => {
             const r = [(i - 1) * (W + GAP), i * (W + GAP), (i + 1) * (W + GAP)];
-            return <Animated.View key={s.key} style={[st.dot, { width: x.interpolate({ inputRange: r, outputRange: [5, 14, 5], extrapolate: "clamp" }), opacity: x.interpolate({ inputRange: r, outputRange: [0.5, 1, 0.5], extrapolate: "clamp" }) }]} />;
+            return <Animated.View key={s.key} style={[st.dot, { width: 14, transform: [{ scaleX: x.interpolate({ inputRange: r, outputRange: [0.36, 1, 0.36], extrapolate: "clamp" }) }], opacity: x.interpolate({ inputRange: r, outputRange: [0.5, 1, 0.5], extrapolate: "clamp" }) }]} />;
           })}
         </View>)}
     </View>
