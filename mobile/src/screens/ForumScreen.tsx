@@ -56,7 +56,7 @@ export default function ForumScreen({ navigation }: any) {
               <View style={styles.ico}><Text style={{ fontSize: 26 }}>{item.icon || "💬"}</Text></View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.categoryTitle}>{item.titleFr}</Text>
-                <Text style={styles.muted}>{subs.length} sujets{hot ? " · 🔥 actif aujourd'hui" : ""}</Text>
+                <Text style={styles.muted}>{subs.length} sujet{subs.length > 1 ? "s" : ""}{hot ? " · 🔥 actif aujourd'hui" : ""}</Text>
               </View>
               <Text style={{ color: colors.rose, fontSize: 22 }}>{open ? "⌃" : "⌄"}</Text>
             </TouchableOpacity>
