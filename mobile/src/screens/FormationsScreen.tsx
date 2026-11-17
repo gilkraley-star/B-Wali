@@ -100,7 +100,7 @@ export default function FormationsScreen({ navigation }: any) {
             </Text>
             {c.partner ? <Text style={styles.meta}>En partenariat avec {c.partner}</Text> : null}
             <Text style={styles.body}>{c.summary}</Text>
-            <Text style={styles.meta}>⏱ {c.durationMin} min · 🎓 Attestation après le test</Text>
+            <Text style={styles.meta}>⏱ {c.durationMin >= 60 ? (c.durationMin / 60).toString().replace(".", ",") + " h" : c.durationMin + " min"} · 🎓 Attestation après le test</Text>
             {postponed ? (
               <Text style={styles.postponed}>
                 📅 Session reportée : la formatrice n'était pas disponible. Nouvelle date : {fmt(c.postponedTo)}. Ton inscription reste valable.

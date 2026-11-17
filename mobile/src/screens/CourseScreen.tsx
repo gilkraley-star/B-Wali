@@ -61,9 +61,9 @@ export default function CourseScreen({ route, navigation }: any) {
             <TextInput style={s.in} value={fullName} onChangeText={setFullName} placeholder="Ex. Marie Ngaïssona" autoCapitalize="words" />
             <Text style={s.lab}>Date de naissance</Text>
             <View style={s.row}>
-              <TextInput style={[s.in, { flex: 1 }]} value={d} onChangeText={setD} placeholder="Jour" keyboardType="number-pad" maxLength={2} />
-              <TextInput style={[s.in, { flex: 1 }]} value={m} onChangeText={setM} placeholder="Mois" keyboardType="number-pad" maxLength={2} />
-              <TextInput style={[s.in, { flex: 1.6 }]} value={y} onChangeText={setY} placeholder="Année" keyboardType="number-pad" maxLength={4} />
+              <TextInput style={[s.in, { flex: 1, minWidth: 0, width: 0 }]} value={d} onChangeText={setD} placeholder="Jour" keyboardType="number-pad" maxLength={2} />
+              <TextInput style={[s.in, { flex: 1, minWidth: 0, width: 0 }]} value={m} onChangeText={setM} placeholder="Mois" keyboardType="number-pad" maxLength={2} />
+              <TextInput style={[s.in, { flex: 1.6, minWidth: 0, width: 0 }]} value={y} onChangeText={setY} placeholder="Année" keyboardType="number-pad" maxLength={4} />
             </View>
             <Text style={s.lab}>Lieu de naissance</Text>
             <TextInput style={s.in} value={place} onChangeText={setPlace} placeholder="Ville ou village" autoCapitalize="words" />
