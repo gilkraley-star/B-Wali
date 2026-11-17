@@ -44,11 +44,13 @@ export const courseInput = z.object({
   icon: z.string().max(8).optional(),
   partner: z.string().max(200).optional(),
   durationMin: z.number().int().min(10).max(600),
-  format: z.enum(["DIRECT", "REPLAY"]).optional(),
+  format: z.enum(["DIRECT", "REPLAY", "VIDEOS"]).optional(),
   startsAt: z.string().datetime().optional(),
   outlineMd: z.string().min(20).max(10000),
   qcm: qcmSchema.optional(),
-  sources: sourcesSchema,
+  certified: z.boolean().optional(),
+  hasTest: z.boolean().optional(),
+  sources: sourcesSchema.optional(), // facultatives pour une formation
 });
 
 export const incomeInput = z.object({

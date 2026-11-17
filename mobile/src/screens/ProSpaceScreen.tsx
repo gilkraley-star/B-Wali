@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { apiRequest, ApiError } from "../api/client";
+import { useAuth } from "../context/AuthContext";
 import { colors, spacing } from "../theme/colors";
 import { Card, ErrorText, FieldLabel, PrimaryButton, ScreenTitle, TextInput } from "../theme/ui";
 
@@ -39,6 +40,10 @@ const CATEGORIES = [
  * Rien n'est visible des filles avant la validation d'un compte administrateur.
  */
 export default function ProSpaceScreen() {
+  const { user } = useAuth();
+  const partner = user?.role === "PARTENAIRE";
+  const [cTitle, setCTitle] = useState(""); const [cSum, setCSum] = useState(""); const [cOutline, setCOutline] = useState(""); const [cHours, setCHours] = useState("2");
+  const [cFmt, setCFmt] = useState("DIRECT"); const [cCert, setCCert] = useState(true); const [cTest, setCTest] = useState(true);
   const [mine, setMine] = useState<Mine | null>(null);
   const [available, setAvailable] = useState(false);
   const [title, setTitle] = useState("");
@@ -91,11 +96,39 @@ export default function ProSpaceScreen() {
     }
   };
 
+  const submitCourse = async () => {
+    setError(null);
+    const h = parseFloat(cHours.replace(",", "."));
+    if (!(h >= 0.5)) return setError("Écris la durée en heures (ex. 2).");
+    setLoading(true);
+    try {
+      await apiRequest("/pro/submit/courses", { method: "POST", body: { title: cTitle.trim(), summary: cSum.trim(), outlineMd: cOutline.trim(), durationMin: Math.round(h * 60), format: cFmt, certified: cCert, hasTest: cCert && cTest } });
+      Alert.alert("Envoyée", "Ta formation est envoyée à l'équipe Wali. Elle sera visible après validation.");
+      setCTitle(""); setCSum(""); setCOutline(""); load();
+    } catch (e) { setError(e instanceof ApiError ? e.message : "Erreur d'envoi."); }
+    finally { setLoading(false); }
+  };
   const all = mine ? [...mine.articles, ...mine.courses, ...mine.income] : [];
 
   return (
     <ScrollView style={styles.c} contentContainerStyle={{ padding: spacing.lg }}>
-      <ScreenTitle>Espace professionnelle</ScreenTitle>
+      <ScreenTitle>{partner ? "Espace partenaire" : "Espace professionnelle"}</ScreenTitle>
+      {partner ? (<>
+        <Text style={styles.p}>Propose une formation pour les filles. L'équipe Wali la relit, ajoute les vidéos et la programme. Les sources sont facultatives.</Text>
+        <FieldLabel>Titre de la formation</FieldLabel>
+        <TextInput value={cTitle} onChangeText={setCTitle} />
+        <FieldLabel>Description courte</FieldLabel>
+        <TextInput value={cSum} onChangeText={setCSum} multiline style={{ minHeight: 70, textAlignVertical: "top" }} />
+        <FieldLabel>Programme (un thème par ligne)</FieldLabel>
+        <TextInput value={cOutline} onChangeText={setCOutline} multiline style={{ minHeight: 110, textAlignVertical: "top" }} />
+        <FieldLabel>Durée totale (en heures)</FieldLabel>
+        <TextInput value={cHours} onChangeText={setCHours} keyboardType="decimal-pad" />
+        <FieldLabel>Type</FieldLabel>
+        <View style={styles.row}>{[["DIRECT", "En direct"], ["VIDEOS", "Vidéos"], ["REPLAY", "Replay"]].map(([k, l]) => <Text key={k} onPress={() => setCFmt(k)} style={[styles.chip, cFmt === k && styles.chipOn]}>{l}</Text>)}</View>
+        <View style={[styles.row, { marginTop: 10 }]}><Text onPress={() => setCCert(!cCert)} style={[styles.chip, cCert && styles.chipOn]}>🎓 Avec attestation</Text><Text onPress={() => cCert && setCTest(!cTest)} style={[styles.chip, cCert && cTest && styles.chipOn]}>📝 Avec test</Text></View>
+        <ErrorText>{error}</ErrorText>
+        <PrimaryButton title="Envoyer pour validation" onPress={submitCourse} loading={loading} />
+      </>) : (<>
       <Card style={{ flexDirection: "row", alignItems: "center" }}>
         <Text style={{ flex: 1, fontWeight: "600", color: colors.prune }}>Je suis disponible pour répondre aux filles</Text>
         <Switch value={available} onValueChange={toggleAvail} />
@@ -123,6 +156,7 @@ export default function ProSpaceScreen() {
       <TextInput value={srcUrl} onChangeText={setSrcUrl} autoCapitalize="none" keyboardType="url" />
       <ErrorText>{error}</ErrorText>
       <PrimaryButton title="Envoyer pour validation" onPress={submit} loading={loading} />
+      </>)}
 
       <Text style={styles.h}>Mes propositions</Text>
       {all.length === 0 && <Text style={styles.p}>Aucune proposition pour l'instant.</Text>}

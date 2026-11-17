@@ -1,3 +1,4 @@
+import { KeyboardTapDismiss, Backdrop } from "../theme/kb";
 import React, { useEffect, useState } from "react";
 import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { colors, spacing } from "../theme/colors";
@@ -46,7 +47,7 @@ export default function CarnetScreen({ route, navigation }: any) {
 
       <Modal visible={open} animationType="slide" transparent onRequestClose={() => setOpen(false)}>
         <KeyboardAvoidingView style={s.back} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <View style={s.sheet}><ScrollView keyboardShouldPersistTaps="handled">
+          <KeyboardTapDismiss style={{ flex: 1, justifyContent: "flex-end" }}><Backdrop onClose={() => setOpen(false)} /><View style={s.sheet}><ScrollView keyboardShouldPersistTaps="handled">
             <Text style={s.h}>{carnet.emoji} Nouvelle page</Text>
             <Text style={s.lab2}>Date (JJ/MM/AAAA)</Text>
             <TextInput style={s.in} value={date} onChangeText={setDate} />
@@ -63,7 +64,7 @@ export default function CarnetScreen({ route, navigation }: any) {
               </View>))}
             <TouchableOpacity style={s.save} onPress={save}><Text style={s.fabT}>Enregistrer</Text></TouchableOpacity>
             <TouchableOpacity onPress={() => setOpen(false)}><Text style={[s.small, { textAlign: "center", marginTop: 10 }]}>Annuler</Text></TouchableOpacity>
-          </ScrollView></View>
+          </ScrollView></View></KeyboardTapDismiss>
         </KeyboardAvoidingView>
       </Modal>
     </View>

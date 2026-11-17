@@ -401,3 +401,19 @@ model Announcement {
   endsAt    DateTime?
   createdAt DateTime  @default(now())
 }
+
+// Centres de santé affichés dans l'appli (gérés par l'équipe dans l'administration).
+model HealthCenter {
+  id        String   @id @default(uuid())
+  country   String   @default("CF")
+  name      String
+  kind      String   @default("") // ex. « Hôpital public · urgences »
+  city      String   @default("")
+  district  String?
+  phone     String?
+  lat       Float?
+  lng       Float?
+  active    Boolean  @default(true)
+  sort      Int      @default(0)
+  createdAt DateTime @default(now())
+}

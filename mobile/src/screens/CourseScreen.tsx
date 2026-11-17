@@ -39,7 +39,7 @@ export default function CourseScreen({ route, navigation }: any) {
         <Text style={s.meta}>⏱ {c.durationMin >= 60 ? (c.durationMin / 60).toString().replace(".", ",") + " h" : c.durationMin + " min"} · 🎓 Attestation après le test</Text>
         {c.startsAt ? <Text style={s.meta}>📅 {new Date(c.startsAt).toLocaleString("fr-FR", { dateStyle: "full", timeStyle: "short" })}</Text> : null}
         {c.location ? <Text style={s.meta}>📍 {c.location}</Text> : null}
-        {!c.author && c.trainerName ? <Card><Text style={s.h}>Ta formatrice</Text><Text style={s.body}>{c.trainerName}{c.trainerTitle ? " · " + c.trainerTitle : ""}</Text></Card> : null}
+        {!c.author && c.trainerName ? <Card><Text style={s.h}>{c.author.role === "PARTENAIRE" ? "Proposée par" : "Ta formatrice"}</Text><Text style={s.body}>{c.trainerName}{c.trainerTitle ? " · " + c.trainerTitle : ""}</Text></Card> : null}
         {c.author ? (
           <Card>
             <Text style={s.h}>Ta formatrice</Text>
@@ -47,7 +47,7 @@ export default function CourseScreen({ route, navigation }: any) {
               {c.author.photoUrl ? <Image source={{ uri: apiOrigin + c.author.photoUrl }} style={s.photo} /> : <View style={[s.photo, { backgroundColor: "#FFD6DD" }]} />}
               <View style={{ flex: 1 }}>
                 <Text style={s.name}>{c.author.fullName}{c.author.certified ? " ✓" : ""}</Text>
-                <Text style={s.meta}>{c.author.profession}</Text>
+                {c.author.role === "PARTENAIRE" ? null : <Text style={s.meta}>{c.author.profession}</Text>}
               </View>
             </View>
           </Card>) : null}

@@ -144,6 +144,23 @@ async function main() {
 
   console.log("Seed : catégories du forum…");
 
+  // Centres de santé de Bangui (position repérée sur Google Maps). L'équipe les gère ensuite dans l'admin.
+  if ((await prisma.healthCenter.count()) === 0) {
+    const bangui: [string, string, string | null, number, number][] = [
+      ["Hôpital Général de Bangui", "Hôpital public · soins généraux", null, 4.37237, 18.5747],
+      ["Hôpital Communautaire de Bangui", "Hôpital public · urgences et soins de référence", null, 4.38766, 18.55676],
+      ["Hôpital de l'Amitié", "Hôpital public · médecine, chirurgie, obstétrique et gynécologie", null, 4.40963, 18.55304],
+      ["Centre Hospitalier Universitaire de Bangui", "Hôpital universitaire · soins spécialisés", null, 4.38025, 18.5646],
+      ["Complexe Pédiatrique de Bangui", "Hôpital · soins pour enfants et adolescentes", null, 4.39468, 18.5582],
+      ["Centre de Santé Henry Dunant", "Centre de santé · soins de base et vaccination", "Avenue Barthélemy", 4.37815, 18.53812],
+      ["Clinique Sainte Catherine", "Clinique · consultations et gynécologie", null, 4.42822, 18.54637],
+      ["Polyclinique Saint Jacques", "Polyclinique · consultations", null, 4.36152, 18.56318],
+      ["Clinique Espoir", "Clinique · consultations", null, 4.36809, 18.57138],
+      ["CiBé Clinique", "Clinique · Cité Lada II, Bimbo", "Bimbo 1, Cité Lada II", 4.33169, 18.51006],
+    ];
+    for (let i = 0; i < bangui.length; i++) { const [name, kind, district, lat, lng] = bangui[i]; await prisma.healthCenter.create({ data: { country: "CF", name, kind, city: "Bangui", district, lat, lng, sort: i } }); }
+  }
+
   // Modèle d'attestation par défaut : l'équipe peut en créer d'autres ou le modifier dans l'admin (Attestations).
   if ((await prisma.certTemplate.count()) === 0) {
     const fs = await import("fs"), pth = await import("path");

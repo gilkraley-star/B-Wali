@@ -9,6 +9,7 @@ import { remindersEnabled, setReminders } from "../notifications";
 import { Lock, checkLock, clearLock, getLock, setLock } from "../lock";
 import { PatternPad, PinPad } from "../components/LockScreen";
 import { Modal } from "react-native";
+import { KeyboardTapDismiss, Backdrop } from "../theme/kb";
 import SosChip from "../components/SosChip";
 import { FadeUp } from "../components/anim";
 
@@ -108,7 +109,7 @@ export default function SettingsScreen({ navigation }: any) {
         <Toggle label="🔊 Sons des jeux" value={sounds} onChange={(v) => { setSounds(v); setSoundsEnabled(v); }} />
 
         <Modal visible={!!flow} animationType="slide" transparent onRequestClose={() => setFlow(null)}>
-          <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" }}>
+          <KeyboardTapDismiss style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" }}><Backdrop onClose={() => setFlow(null)} />
             <View style={{ backgroundColor: "#FFF6F0", borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 22, alignItems: "center" }}>
               {flow?.step === "type" ? (<>
                 <Text style={s.mh}>Comment veux-tu verrouiller Wali ?</Text>
@@ -122,7 +123,7 @@ export default function SettingsScreen({ navigation }: any) {
               </>)}
               <TouchableOpacity onPress={() => setFlow(null)} style={{ padding: 14 }}><Text style={{ color: "#8C7A86" }}>Annuler</Text></TouchableOpacity>
             </View>
-          </View>
+          </KeyboardTapDismiss>
         </Modal>
         <TouchableOpacity style={s.ghost} onPress={logout} activeOpacity={0.85}><Text style={s.ghostT}>{t("logout")}</Text></TouchableOpacity>
         <TouchableOpacity activeOpacity={0.9} onPress={deleteAccount}>

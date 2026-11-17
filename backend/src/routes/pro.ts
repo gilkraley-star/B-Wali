@@ -37,6 +37,9 @@ router.patch("/availability", async (req: AuthRequest, res) => {
 // POST /api/pro/submit/:type  — { draft?: boolean, ...champs du contenu }
 router.post("/submit/:type", async (req: AuthRequest, res) => {
   const type = req.params.type as ContentType;
+  const me = await prisma.user.findUnique({ where: { id: req.userId } });
+  const isPartner = me?.role === "PARTENAIRE";
+  if (isPartner && type !== "courses") return res.status(403).json({ error: "Un compte partenaire propose des formations." });
   const status = req.body?.draft ? "BROUILLON" : "A_VALIDER";
   try {
     if (type === "articles") {
@@ -64,17 +67,19 @@ router.post("/submit/:type", async (req: AuthRequest, res) => {
       if (!p.success) return res.status(400).json({ error: p.error.issues[0].message });
       const c = await prisma.course.create({
         data: {
-          slug: slugify(p.data.title),
+          slug: slugify(p.data.title) + "-" + Date.now().toString(36),
           title: p.data.title,
           summary: p.data.summary,
           icon: p.data.icon || "🎓",
-          partner: p.data.partner,
+          partner: isPartner ? me!.fullName : p.data.partner,
+          certified: p.data.certified ?? true,
+          hasTest: p.data.certified === false ? false : p.data.hasTest ?? true,
           durationMin: p.data.durationMin,
           format: p.data.format || "DIRECT",
           startsAt: p.data.startsAt ? new Date(p.data.startsAt) : null,
           outlineMd: p.data.outlineMd,
           qcmJson: JSON.stringify(p.data.qcm || []),
-          sourcesJson: JSON.stringify(p.data.sources),
+          sourcesJson: JSON.stringify(p.data.sources || []),
           status,
           authorId: req.userId,
         },

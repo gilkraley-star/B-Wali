@@ -1,10 +1,11 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity } from "react-native";
+import { useTopPad } from "../theme/inset";
 
 // Petite pastille SOS en haut à droite (maquette) : un appui ouvre l'écran Urgence.
 export default function SosChip({ navigation }: { navigation: any }) {
   return (
-    <TouchableOpacity style={s.chip} onPress={() => navigation.navigate("Urgence")} accessibilityRole="button" accessibilityLabel="SOS urgence">
+    <TouchableOpacity style={[s.chip, { top: 20 + useTopPad() }]} onPress={() => navigation.navigate("Urgence")} accessibilityRole="button" accessibilityLabel="SOS urgence">
       <Text style={s.t}>SOS</Text>
     </TouchableOpacity>
   );

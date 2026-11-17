@@ -13,7 +13,7 @@ import { saveCourseVideo, deleteCourseVideo } from "../utils/courseVideo";
 const router = Router();
 router.use(requireAuth, requireRole("ADMIN"));
 
-const PRO_ROLES = ["PROFESSIONNELLE", "COACH", "FORMATRICE", "MODERATRICE"];
+const PRO_ROLES = ["PROFESSIONNELLE", "COACH", "FORMATRICE", "MODERATRICE", "PARTENAIRE"];
 
 async function audit(actorId: string | undefined, action: string, target: string) {
   await prisma.auditLog.create({ data: { actorId: actorId || "?", action, target } });
@@ -86,11 +86,16 @@ router.get("/users", async (req, res) => {
 const createUserSchema = z.object({
   email: z.string().email(),
   fullName: z.string().min(3).max(120),
-  profession: z.string().min(2).max(120), // ex. "Sage-femme", "Psychologue", "Coach", "Formatrice"
-  role: z.enum(["PROFESSIONNELLE", "COACH", "FORMATRICE", "MODERATRICE"]),
+  profession: z.string().min(2).max(120).optional(), // ex. "Sage-femme", "Psychologue", "Coach", "Formatrice"
+  role: z.enum(["PROFESSIONNELLE", "COACH", "FORMATRICE", "MODERATRICE", "PARTENAIRE"]),
   bio: z.string().max(600).optional(),
   certified: z.boolean().optional(),
-  photo: z.string().min(50, "Une photo est obligatoire pour un compte professionnel."),
+  photo: z.string().optional(),
+}).superRefine((v, ctx) => {
+  if (v.role !== "PARTENAIRE") {
+    if (!v.profession || v.profession.length < 2) ctx.addIssue({ code: "custom", message: "Écris la profession." });
+    if (!v.photo || v.photo.length < 50) ctx.addIssue({ code: "custom", message: "Une photo est obligatoire pour un compte professionnel." });
+  }
 });
 
 // POST /api/admin/users — crée le compte, renvoie le mot de passe provisoire UNE SEULE FOIS
@@ -100,9 +105,9 @@ router.post("/users", async (req: AuthRequest, res) => {
   const exists = await prisma.user.findUnique({ where: { email: p.data.email } });
   if (exists) return res.status(409).json({ error: "Un compte existe déjà avec cet e-mail." });
 
-  let photoUrl: string;
+  let photoUrl: string | null = null;
   try {
-    photoUrl = savePhotoFromDataUrl(p.data.photo);
+    if (p.data.photo) photoUrl = savePhotoFromDataUrl(p.data.photo);
   } catch (e: any) {
     return res.status(400).json({ error: e.message });
   }
@@ -117,7 +122,7 @@ router.post("/users", async (req: AuthRequest, res) => {
       ageBracket: "FEMME_ADULTE",
       role: p.data.role,
       fullName: p.data.fullName,
-      profession: p.data.profession,
+      profession: p.data.profession || "Organisation partenaire",
       bio: p.data.bio,
       photoUrl,
       certified: !!p.data.certified,
@@ -138,7 +143,7 @@ const patchUserSchema = z.object({
   fullName: z.string().min(3).max(120).optional(),
   profession: z.string().min(2).max(120).optional(),
   bio: z.string().max(600).optional(),
-  role: z.enum(["PROFESSIONNELLE", "COACH", "FORMATRICE", "MODERATRICE"]).optional(),
+  role: z.enum(["PROFESSIONNELLE", "COACH", "FORMATRICE", "MODERATRICE", "PARTENAIRE"]).optional(),
   certified: z.boolean().optional(),
   active: z.boolean().optional(),
   photo: z.string().optional(),
@@ -206,7 +211,7 @@ async function applyReview(actorId: string | undefined, type: string, id: string
   if (!model) throw new Error("Type inconnu.");
   const item = await model.findUnique({ where: { id } });
   if (!item) throw new Error("Contenu introuvable.");
-  if (decision === "approve" && type !== "stories" && parseSources(item.sourcesJson).length === 0) {
+  if (decision === "approve" && type !== "stories" && type !== "courses" && parseSources(item.sourcesJson).length === 0) {
     // Règle de sécurité : aucun contenu n'est publié sans au moins une source citée.
     throw new Error("Impossible de publier : aucune source n'est associée (ajoute-en une d'abord).");
   }
@@ -297,6 +302,38 @@ router.get("/courses", async (_req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Centres de santé (liste affichée dans l'appli, avec position pour l'itinéraire)
+// ---------------------------------------------------------------------------
+router.get("/health-centers", async (_req, res) => {
+  res.json(await prisma.healthCenter.findMany({ orderBy: [{ country: "asc" }, { sort: "asc" }, { createdAt: "asc" }] }));
+});
+const hcBody = z.object({
+  country: z.string().length(2).optional(), name: z.string().trim().min(2).max(120), kind: z.string().trim().max(160).optional(),
+  city: z.string().trim().max(80).optional(), district: z.string().trim().max(80).optional().nullable(), phone: z.string().trim().max(30).optional().nullable(),
+  lat: z.number().min(-90).max(90).nullable().optional(), lng: z.number().min(-180).max(180).nullable().optional(), active: z.boolean().optional(),
+});
+router.post("/health-centers", async (req: AuthRequest, res) => {
+  const p = hcBody.safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: "Nom du centre obligatoire ; position (latitude, longitude) valide si tu la donnes." });
+  const max = await prisma.healthCenter.aggregate({ _max: { sort: true } });
+  const c = await prisma.healthCenter.create({ data: { ...p.data, country: p.data.country || "CF", sort: (max._max.sort ?? 0) + 1 } as any });
+  await audit(req.userId, "CREATE_HEALTH_CENTER", c.name);
+  res.status(201).json(c);
+});
+router.patch("/health-centers/:id", async (req: AuthRequest, res) => {
+  const p = hcBody.partial().safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: "Données invalides." });
+  const c = await prisma.healthCenter.update({ where: { id: req.params.id }, data: p.data as any });
+  await audit(req.userId, "UPDATE_HEALTH_CENTER", c.name);
+  res.json(c);
+});
+router.delete("/health-centers/:id", async (req: AuthRequest, res) => {
+  const c = await prisma.healthCenter.delete({ where: { id: req.params.id } }).catch(() => null);
+  if (c) await audit(req.userId, "DELETE_HEALTH_CENTER", c.name);
+  res.status(204).send();
+});
+
+// ---------------------------------------------------------------------------
 // Entre Nous : thèmes et sous-thèmes du forum gérés par l'équipe
 // ---------------------------------------------------------------------------
 router.get("/forum-categories", async (_req, res) => {
@@ -357,7 +394,6 @@ router.post("/courses", async (req: AuthRequest, res) => {
     format: d.format, certified: d.certified ?? true, hasTest: d.certified === false ? false : d.hasTest ?? true, certTemplateId: (await prisma.certTemplate.findFirst({ orderBy: { createdAt: "asc" } }))?.id ?? null,
     startsAt: d.startsAt ? new Date(d.startsAt) : null, location: d.location, seats: d.seats,
     trainerId: d.trainerId, trainerName, trainerTitle, status: "PUBLIE", authorId: d.trainerId ?? null,
-    sourcesJson: JSON.stringify([{ title: "Programme défini par l'équipe Wali" + (d.partner ? " avec " + d.partner : ""), url: "" }]),
   } });
   await audit(req.userId, "CREATE_COURSE", c.title);
   res.status(201).json({ id: c.id, slug: c.slug });

@@ -52,4 +52,4 @@ export function requireRole(...roles: string[]) {
   };
 }
 
-export const PRO_ROLES = ["PROFESSIONNELLE", "COACH", "FORMATRICE"];
+export const PRO_ROLES = ["PROFESSIONNELLE", "COACH", "FORMATRICE", "PARTENAIRE"];

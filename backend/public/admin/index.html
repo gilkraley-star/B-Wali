@@ -66,9 +66,9 @@
     try {
       var res = await Promise.all([
         api("/admin/stats"), api("/admin/queue?status=" + state.filter), api("/admin/users"),
-        api("/admin/courses"), api("/admin/reports"), api("/admin/audit"), api("/admin/reported-users"), api("/admin/cert-templates"), api("/admin/announcements"), api("/admin/forum-categories")
+        api("/admin/courses"), api("/admin/reports"), api("/admin/audit"), api("/admin/reported-users"), api("/admin/cert-templates"), api("/admin/announcements"), api("/admin/forum-categories"), api("/admin/health-centers")
       ]);
-      state.stats = res[0]; state.queue = res[1]; state.users = res[2]; state.courses = res[3]; state.reports = res[4]; state.audit = res[5]; state.reported = res[6]; state.tpls = res[7]; state.anns = res[8]; state.fcats = res[9];
+      state.stats = res[0]; state.queue = res[1]; state.users = res[2]; state.courses = res[3]; state.reports = res[4]; state.audit = res[5]; state.reported = res[6]; state.tpls = res[7]; state.anns = res[8]; state.fcats = res[9]; state.hcs = res[10];
     } catch(e){ if (token) flash(e.message, "err"); return; }
     render();
   }
@@ -90,7 +90,7 @@
     };
   }
 
-  var TABS = [["dash","Tableau de bord"],["queue","À valider"],["users","Comptes pro"],["courses","Formations"],["forum","Entre Nous"],["certs","Attestations"],["ann","Annonces"],["reports","Signalements"],["audit","Journal"]];
+  var TABS = [["dash","Tableau de bord"],["queue","À valider"],["users","Comptes pro"],["courses","Formations"],["forum","Entre Nous"],["hc","Centres de santé"],["certs","Attestations"],["ann","Annonces"],["reports","Signalements"],["audit","Journal"]];
 
   function render(){
     if (!token) return loginView();
@@ -98,7 +98,7 @@
     var html = '<header><h1><img src="logo.png" alt="" style="height:34px;vertical-align:middle;margin-right:10px">Wali · Administration</h1><button id="out">Se déconnecter</button></header><nav>' +
       TABS.map(function(t){ return '<button data-t="'+t[0]+'" class="'+(state.tab===t[0]?'on':'')+'">'+t[1]+(t[0]==="queue"&&pending?' ('+pending+')':'')+'</button>'; }).join("") + '</nav><main>';
     if (state.msg) html += '<div class="msg '+state.msg.kind+'">'+esc(state.msg.text)+'</div>';
-    html += ({dash:dash, queue:queueView, users:usersView, courses:coursesView, forum:forumView, certs:certsView, ann:annView, reports:reportsView, audit:auditView}[state.tab])();
+    html += ({dash:dash, queue:queueView, users:usersView, courses:coursesView, forum:forumView, hc:hcView, certs:certsView, ann:annView, reports:reportsView, audit:auditView}[state.tab])();
     html += '</main>';
     app.innerHTML = html;
     document.getElementById("out").onclick = logout;
@@ -141,13 +141,13 @@
   }
 
   function usersView(){
-    var h = '<div class="card"><b>Créer un compte professionnel</b>' +
-      '<label>Nom complet</label><input id="u_name" placeholder="Mireille N.">' +
+    var h = '<div class="card"><b>Créer un compte professionnel ou partenaire</b>' +
+      '<label>Nom complet (ou nom de l’organisation pour un partenaire)</label><input id="u_name" placeholder="Mireille N. · FAFECA">' +
       '<label>E-mail</label><input id="u_mail" type="email">' +
-      '<label>Rôle</label><select id="u_role"><option value="PROFESSIONNELLE">Professionnelle de santé (sage-femme, médecin, psychologue…)</option><option value="COACH">Coach</option><option value="FORMATRICE">Formatrice</option><option value="MODERATRICE">Modératrice</option></select>' +
+      '<label>Rôle</label><select id="u_role"><option value="PROFESSIONNELLE">Professionnelle de santé (sage-femme, médecin, psychologue…)</option><option value="COACH">Coach</option><option value="FORMATRICE">Formatrice</option><option value="MODERATRICE">Modératrice</option><option value="PARTENAIRE">🤝 Organisation partenaire (propose des formations)</option></select>' +
       '<label>Profession affichée</label><input id="u_prof" placeholder="Sage-femme · Psychologue · Coach en entrepreneuriat…">' +
       '<label>Courte présentation (facultatif)</label><textarea id="u_bio" maxlength="600"></textarea>' +
-      '<label>Photo (obligatoire, visage visible)</label><input id="u_photo" type="file" accept="image/jpeg,image/png,image/webp"><img id="u_prev" class="avatar" style="margin-top:8px;display:none">' +
+      '<label>Photo (obligatoire, visage visible) · logo facultatif pour un partenaire</label><input id="u_photo" type="file" accept="image/jpeg,image/png,image/webp"><img id="u_prev" class="avatar" style="margin-top:8px;display:none">' +
       '<label><input id="u_cert" type="checkbox" style="width:auto"> Badge bleu « certifiée » (diplôme vérifié)</label>' +
       '<p><button class="p" id="u_go">Créer le compte</button></p>' +
       (state.newPwd ? '<div class="msg good"><b>Mot de passe provisoire (affiché une seule fois) :</b><br><code style="font-size:18px">'+esc(state.newPwd.pwd)+'</code><br><small>Pour '+esc(state.newPwd.email)+'. Transmets-le en privé : elle devra le changer à la première connexion.</small></div>' : '') +
@@ -162,6 +162,24 @@
     }).join("") || '<div class="card">Aucun compte professionnel pour le moment.</div>';
     return h;
   }
+
+  function hcView(){
+    var l = state.hcs || [];
+    var h = '<p><small>Les centres que voient les filles dans « Centres de santé ». Pour la position : ouvre Google Maps, appuie longuement sur le lieu, copie les deux nombres (ex. 4.37237, 18.57470) et colle-les ci-dessous. Le bouton « Itinéraire » de l’appli ouvre alors la carte sur ce point.</small></p>' +
+      '<div class="card"><b>➕ Ajouter un centre</b>' +
+      '<label>Nom</label><input id="h_name" placeholder="Hôpital de l’Amitié">' +
+      '<label>Type (facultatif)</label><input id="h_kind" placeholder="Hôpital public · gynécologie">' +
+      '<div class="row"><div class="grow"><label>Ville</label><input id="h_city" value="Bangui"></div><div class="grow"><label>Quartier (facultatif)</label><input id="h_dist"></div></div>' +
+      '<label>Position (latitude, longitude)</label><input id="h_pos" placeholder="4.37237, 18.57470">' +
+      '<label>Téléphone (facultatif, vérifié)</label><input id="h_tel" placeholder="+236 …">' +
+      '<p><button class="p" id="h_go">Ajouter le centre</button></p></div>';
+    l.forEach(function(c){
+      h += '<div class="card"><div class="row"><div class="grow"><b>'+esc(c.name)+'</b> '+(c.active?'':'<span class="tag">masqué</span>')+'<br><small>'+esc(c.kind||'')+' · '+esc(c.city||'')+(c.district?' ('+esc(c.district)+')':'')+'<br>'+(c.lat!=null?'📍 '+c.lat+', '+c.lng:'<span style="color:#C23B3B">⚠️ pas de position : l’itinéraire cherchera par le nom</span>')+(c.phone?' · 📞 '+esc(c.phone):'')+'</small></div>' +
+        '<button class="s" data-hcedit="'+c.id+'">Modifier</button><button class="s" data-hcact="'+c.id+'" data-v="'+(!c.active)+'">'+(c.active?'Masquer':'Afficher')+'</button><button class="bad" data-hcdel="'+c.id+'">Supprimer</button></div></div>';
+    });
+    return h || '<div class="card">Aucun centre.</div>';
+  }
+  function parsePos(t){ var m = /(-?\d+(?:[.,]\d+)?)\s*[,; ]\s*(-?\d+(?:[.,]\d+)?)/.exec(t||""); return m ? { lat: parseFloat(m[1].replace(",", ".")), lng: parseFloat(m[2].replace(",", ".")) } : null; }
 
   function forumView(){
     var cats = state.fcats || [];
@@ -332,8 +350,8 @@
     if (photo) photo.onchange = act(async function(){ if (!photo.files[0]) return; photoData = await fileToDataUrl(photo.files[0]); var p = document.getElementById("u_prev"); p.src = photoData; p.style.display = "block"; });
     var go = document.getElementById("u_go");
     if (go) go.onclick = act(async function(){
-      if (!photoData) return flash("La photo est obligatoire.", "err");
-      var r = await api("/admin/users", { method:"POST", body:{ fullName: v("u_name"), email: v("u_mail"), role: v("u_role"), profession: v("u_prof"), bio: v("u_bio") || undefined, certified: document.getElementById("u_cert").checked, photo: photoData } });
+      if (!photoData && v("u_role") !== "PARTENAIRE") return flash("La photo est obligatoire.", "err");
+      var r = await api("/admin/users", { method:"POST", body:{ fullName: v("u_name"), email: v("u_mail"), role: v("u_role"), profession: v("u_prof") || undefined, bio: v("u_bio") || undefined, certified: document.getElementById("u_cert").checked, photo: photoData || undefined } });
       state.newPwd = { pwd: r.temporaryPassword, email: v("u_mail") };
       await load();
     });
@@ -378,6 +396,22 @@
     $$("[data-annact]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/announcements/"+b.dataset.annact, {method:"PATCH", body:{active:b.dataset.v==="true"}}); await load(); }); });
     $$("[data-anndel]").forEach(function(b){ b.onclick = act(async function(){ if(!confirm("Supprimer cette annonce ?")) return; await api("/admin/announcements/"+b.dataset.anndel, {method:"DELETE"}); await load(); }); });
     function dt(id){ var el = app.querySelector('[data-dt="'+id+'"]'); if (!el || !el.value) throw new Error("Choisis d'abord une date et une heure."); return new Date(el.value).toISOString(); }
+    var hg = document.getElementById("h_go");
+    if (hg) hg.onclick = act(async function(){
+      var pos = parsePos(v("h_pos")); if (v("h_pos") && !pos) return flash("Position invalide : écris par ex. 4.37237, 18.57470.", "err");
+      await api("/admin/health-centers", { method:"POST", body:{ name: v("h_name"), kind: v("h_kind") || undefined, city: v("h_city") || undefined, district: v("h_dist") || undefined, phone: v("h_tel") || undefined, lat: pos ? pos.lat : undefined, lng: pos ? pos.lng : undefined } });
+      await load(); flash("Centre ajouté : il apparaît dans l’appli.");
+    });
+    $$("[data-hcact]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/health-centers/"+b.dataset.hcact, { method:"PATCH", body:{ active: b.dataset.v === "true" } }); await load(); }); });
+    $$("[data-hcdel]").forEach(function(b){ b.onclick = act(async function(){ if(!confirm("Supprimer ce centre ?")) return; await api("/admin/health-centers/"+b.dataset.hcdel, { method:"DELETE" }); await load(); flash("Centre supprimé."); }); });
+    $$("[data-hcedit]").forEach(function(b){ b.onclick = act(async function(){
+      var c = (state.hcs||[]).filter(function(x){ return x.id === b.dataset.hcedit; })[0]; if(!c) return;
+      var name = prompt("Nom du centre :", c.name); if (name === null) return;
+      var pos = prompt("Position « latitude, longitude » (laisse vide pour ne pas changer) :", c.lat!=null ? c.lat+", "+c.lng : ""); if (pos === null) return;
+      var tel = prompt("Téléphone (vide = aucun) :", c.phone || ""); if (tel === null) return;
+      var body = { name: name.trim() || c.name, phone: tel.trim() || null }; var pp = parsePos(pos); if (pos.trim() && !pp) return flash("Position invalide.", "err"); if (pp) { body.lat = pp.lat; body.lng = pp.lng; }
+      await api("/admin/health-centers/"+c.id, { method:"PATCH", body: body }); await load(); flash("Centre modifié.");
+    }); });
     var fa = document.getElementById("fc_add");
     if (fa) fa.onclick = act(async function(){ await api("/admin/forum-categories", { method:"POST", body:{ titleFr: v("fc_title"), icon: v("fc_icon") || undefined } }); await load(); flash("Thème ajouté."); });
     $$("[data-subadd]").forEach(function(b){ b.onclick = act(async function(){ var i = document.querySelector('[data-subin="'+b.dataset.subadd+'"]'); await api("/admin/forum-categories", { method:"POST", body:{ titleFr: i.value, parentId: b.dataset.subadd } }); await load(); flash("Sous-thème ajouté."); }); });

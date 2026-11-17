@@ -3,7 +3,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { WelcomeBurst } from "../components/Intro";
 import { useFocusEffect } from "@react-navigation/native";
 import { estimateLocal, getCycleLen, loadLocalPeriods } from "../storage/localCycle";
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useTopPad } from "../theme/inset";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { apiRequest } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import HomeCarousel from "../components/HomeCarousel";
@@ -37,7 +38,11 @@ export default function HomeScreen({ navigation }: any) {
   }, []));
   const [welcome, setWelcome] = useState<string | null>(null);
   useEffect(() => { (async () => { try { const w = await AsyncStorage.getItem("wali.welcome"); if (w) { await AsyncStorage.removeItem("wali.welcome"); setWelcome(w); } } catch {} })(); }, []);
-  const isPro = ["PROFESSIONNELLE", "COACH", "FORMATRICE"].includes(user?.role || "");
+  const isPro = ["PROFESSIONNELLE", "COACH", "FORMATRICE", "PARTENAIRE"].includes(user?.role || "");
+  const topPad = useTopPad();
+  const [gridH, setGridH] = useState(0);
+  const rowH = gridH / 3;
+  const icoS = Math.max(30, Math.min(46, rowH * 0.46));
 
   return (
     <View style={s.screen}>
@@ -45,11 +50,11 @@ export default function HomeScreen({ navigation }: any) {
       <Float delay={2000} style={[s.blob, { top: 120, left: -80, width: 170, height: 170, borderRadius: 85, backgroundColor: "#FFE9A8", opacity: 0.55 }]} />
       <Float delay={4000} style={[s.blob, { top: 430, right: -70, width: 150, height: 150, borderRadius: 75, backgroundColor: "#E7D5FF", opacity: 0.5 }]} />
 
-      <Pulse style={s.sosWrap}>
+      <Pulse style={[s.sosWrap, { top: 20 + topPad }]}>
         <TouchableOpacity style={s.sos} onPress={() => navigation.navigate("Urgence")} accessibilityRole="button" accessibilityLabel="SOS urgence"><Text style={s.sosT}>SOS</Text></TouchableOpacity>
       </Pulse>
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 26, paddingBottom: 12 }} showsVerticalScrollIndicator={false}>
+      <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 26, paddingBottom: 94 }}>
         <PendingNotice />
         <FadeUp delay={30} style={s.head}>
           <View style={s.logo}><Image source={require("../../assets/logo-emblem.png")} style={{ width: 34, height: 34 }} resizeMode="contain" /></View>
@@ -73,26 +78,24 @@ export default function HomeScreen({ navigation }: any) {
         </FadeUp>
 
         <FadeUp delay={240}><Text style={s.q}>C'est quoi ton envie aujourd'hui ?</Text></FadeUp>
-        <View style={s.grid}>
-          {TILES.map((t, i) => (
-            <FadeUp key={t.label} delay={300 + i * 50} style={s.cell}>
-              <TouchableOpacity style={[s.tile, { backgroundColor: t.bg }]} onPress={() => navigation.navigate(t.go)} activeOpacity={0.85} accessibilityRole="button">
-                <View style={s.ico}><Text style={{ fontSize: 24 }}>{t.e}</Text></View>
-                <Text style={s.tileT}>{t.label}</Text>
-              </TouchableOpacity>
-            </FadeUp>))}
+        <View style={{ flex: 1, minHeight: 0 }} onLayout={(e) => setGridH(e.nativeEvent.layout.height)}>
+          {[0, 1, 2].map((r) => (
+            <View key={r} style={{ flex: 1, flexDirection: "row", minHeight: 0 }}>
+              {TILES.slice(r * 3, r * 3 + 3).map((t, i) => (
+                <FadeUp key={t.label} delay={300 + (r * 3 + i) * 50} style={{ flex: 1, padding: 5 }}>
+                  <TouchableOpacity style={[s.tile, { backgroundColor: t.bg, flex: 1, justifyContent: "center" }]} onPress={() => navigation.navigate(t.go)} activeOpacity={0.85} accessibilityRole="button">
+                    <View style={[s.ico, { width: icoS, height: icoS, borderRadius: icoS / 2 }]}><Text style={{ fontSize: icoS * 0.52 }}>{t.e}</Text></View>
+                    <Text style={[s.tileT, { marginTop: rowH < 90 ? 4 : 8 }]} numberOfLines={2}>{t.label}</Text>
+                  </TouchableOpacity>
+                </FadeUp>))}
+            </View>))}
         </View>
-        <FadeUp delay={780}>
-          <TouchableOpacity style={s.invite} onPress={() => navigation.navigate("Partager")} accessibilityRole="button" activeOpacity={0.85}>
-            <Text style={{ fontSize: 20 }}>💌</Text><Text style={s.inviteT}>Inviter une amie sur Wali</Text>
-          </TouchableOpacity>
-        </FadeUp>
         {(isPro || user?.role === "ADMIN") && (
-          <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
-            {isPro && <TouchableOpacity style={s.pro} onPress={() => navigation.navigate("ProSpace")}><Text style={s.proT}>🩺 Espace pro</Text></TouchableOpacity>}
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 6 }}>
+            {isPro && <TouchableOpacity style={s.pro} onPress={() => navigation.navigate("ProSpace")}><Text style={s.proT}>{user?.role === "PARTENAIRE" ? "🤝 Espace partenaire" : "🩺 Espace pro"}</Text></TouchableOpacity>}
             {user?.role === "ADMIN" && <TouchableOpacity style={s.pro} onPress={() => navigation.navigate("Admin")}><Text style={s.proT}>🛠️ Administration</Text></TouchableOpacity>}
           </View>)}
-      </ScrollView>
+      </View>
       {welcome ? <WelcomeBurst name={welcome} onDone={() => setWelcome(null)} /> : null}
     </View>
   );
@@ -112,10 +115,10 @@ const s = StyleSheet.create({
   spark: { width: 46, height: 46, borderRadius: 16, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
   advT: { fontSize: 15, fontFamily: "Poppins_800ExtraBold", color: "#3B1D33" }, advS: { fontSize: 12, color: "#5E4A2A", marginTop: 1, fontFamily: "Inter_400Regular" },
   chev: { width: 30, height: 30, borderRadius: 15, backgroundColor: "#3B1D33", alignItems: "center", justifyContent: "center" },
-  q: { fontFamily: "Poppins_700Bold", fontSize: 16, color: "#3B1D33", marginTop: 20, marginBottom: 6, marginLeft: 2 },
+  q: { fontFamily: "Poppins_700Bold", fontSize: 15, color: "#3B1D33", marginTop: 12, marginBottom: 2, marginLeft: 2 },
   grid: { flexDirection: "row", flexWrap: "wrap", marginHorizontal: -5 },
   cell: { width: "33.333%", padding: 5 },
-  tile: { borderRadius: 24, paddingTop: 14, paddingBottom: 12, paddingHorizontal: 3, alignItems: "center" },
+  tile: { borderRadius: 22, paddingHorizontal: 3, alignItems: "center" },
   ico: { width: 46, height: 46, borderRadius: 23, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", shadowColor: "#3B1D33", shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   tileT: { fontSize: 11.5, fontFamily: "Inter_700Bold", color: "#3B1D33", textAlign: "center", marginTop: 8, lineHeight: 15 },
   invite: { backgroundColor: "#C9F0DC", borderRadius: 999, paddingVertical: 13, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, marginTop: 4 },

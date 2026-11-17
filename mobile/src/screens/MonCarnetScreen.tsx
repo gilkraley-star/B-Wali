@@ -1,3 +1,4 @@
+import { KeyboardTapDismiss, Backdrop } from "../theme/kb";
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
@@ -55,35 +56,35 @@ export default function MonCarnetScreen({ navigation }: any) {
       <TouchableOpacity style={s.add} onPress={() => setAdd(true)}><Text style={s.addT}>＋ Ajouter un carnet</Text></TouchableOpacity>
 
       <Modal visible={add} animationType="slide" transparent onRequestClose={() => setAdd(false)}>
-        <View style={s.back}><View style={s.sheet}><ScrollView>
+        <KeyboardTapDismiss style={s.back}><Backdrop onClose={() => setAdd(false)} /><View style={s.sheet}><ScrollView>
           <Text style={s.h}>Quel carnet veux-tu ?</Text>
           {groups.map(([g, label]) => (<View key={g}><Text style={s.group}>{label}</Text>
             {TYPES.filter((t) => t.group === g).map((t) => (
               <TouchableOpacity key={t.id} style={s.card} onPress={() => addType(t.id)}><Text style={{ fontSize: 26 }}>{t.emoji}</Text><View style={{ flex: 1, marginLeft: 12 }}><Text style={s.cardT}>{t.title}</Text><Text style={s.small}>{t.about}</Text></View></TouchableOpacity>))}
           </View>))}
           <TouchableOpacity onPress={() => setAdd(false)}><Text style={[s.small, { textAlign: "center", marginTop: 12 }]}>Fermer</Text></TouchableOpacity>
-        </ScrollView></View></View>
+        </ScrollView></View></KeyboardTapDismiss>
       </Modal>
 
       <Modal visible={!!custom} animationType="fade" transparent onRequestClose={() => setCustom(null)}>
-        <View style={s.back}><View style={s.sheet}>
+        <KeyboardTapDismiss style={s.back}><Backdrop onClose={() => setCustom(null)} /><View style={s.sheet}>
           <Text style={s.h}>Mon propre carnet</Text>
           <TextInput style={s.in} value={custom?.title} onChangeText={(v) => setCustom({ ...custom!, title: v })} placeholder="Nom (ex. Mes recettes)" />
           <TextInput style={s.in} value={custom?.emoji} onChangeText={(v) => setCustom({ ...custom!, emoji: v })} placeholder="Un emoji" maxLength={4} />
           <TouchableOpacity style={s.add} onPress={addCustom}><Text style={s.addT}>Créer</Text></TouchableOpacity>
           <TouchableOpacity onPress={() => setCustom(null)}><Text style={[s.small, { textAlign: "center", marginTop: 10 }]}>Annuler</Text></TouchableOpacity>
-        </View></View>
+        </View></KeyboardTapDismiss>
       </Modal>
 
       <Modal visible={pinModal} animationType="fade" transparent onRequestClose={() => setPinModal(false)}>
-        <View style={s.back}><View style={s.sheet}>
+        <KeyboardTapDismiss style={s.back}><Backdrop onClose={() => setPinModal(false)} /><View style={s.sheet}>
           <Text style={s.h}>Code secret à 4 chiffres</Text>
           <Text style={s.small}>Si tu oublies ce code, il faudra retirer l'appli : tes carnets seront perdus. Choisis un code facile à retenir pour toi.</Text>
           <TextInput style={s.pin} value={newPin} onChangeText={setNewPin} keyboardType="number-pad" secureTextEntry maxLength={4} placeholder="••••" />
           <TouchableOpacity style={s.add} onPress={async () => { if (!/^\d{4}$/.test(newPin)) return Alert.alert("Code", "4 chiffres exactement."); await setPin(newPin); setPinState(newPin); setNewPin(""); setPinModal(false); }}><Text style={s.addT}>Enregistrer le code</Text></TouchableOpacity>
           {pin ? <TouchableOpacity onPress={async () => { await setPin(null); setPinState(null); setPinModal(false); }}><Text style={[s.small, { textAlign: "center", marginTop: 12, color: colors.danger }]}>Retirer le code</Text></TouchableOpacity> : null}
           <TouchableOpacity onPress={() => setPinModal(false)}><Text style={[s.small, { textAlign: "center", marginTop: 10 }]}>Fermer</Text></TouchableOpacity>
-        </View></View>
+        </View></KeyboardTapDismiss>
       </Modal>
     </ScrollView>
   );

@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { apiRequest } from "../api/client";
 import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { FadeUp } from "../components/anim";
 import { useAuth } from "../context/AuthContext";
@@ -8,7 +9,10 @@ import { getCountry } from "../config/countries";
 export default function CentresScreen() {
   const { user } = useAuth();
   const country = getCountry(user?.country);
-  const CENTRES = country.centres;
+  // Liste gérée par l'équipe (admin) ; sans connexion ni liste en ligne, on garde la liste intégrée.
+  const [remote, setRemote] = useState<any[] | null>(null);
+  useEffect(() => { apiRequest<any[]>("/catalog/health-centers", { silent: true } as any).then(setRemote).catch(() => {}); }, []);
+  const CENTRES = remote && remote.length ? remote.map((c) => ({ nom: c.name, type: c.kind, ville: c.city, quartier: c.district || undefined, lat: c.lat ?? undefined, lng: c.lng ?? undefined, tel: c.phone || undefined })) : country.centres.map((c) => ({ ...c, tel: undefined as string | undefined }));
   if (!CENTRES.length) return (
     <ScrollView style={{ flex: 1, backgroundColor: "#FFF6F0" }} contentContainerStyle={{ padding: 20 }}>
       <View style={s.help}><Text style={s.n}>Bientôt pour {country.name} {country.flag}</Text><Text style={s.t}>La liste des centres de santé de ton pays est en préparation avec des professionnelles locales. En attendant, tu peux écrire à une de nos professionnelles depuis l'accueil.</Text></View>
@@ -22,6 +26,7 @@ export default function CentresScreen() {
             <Text style={s.n}>{c.nom}</Text><Text style={s.t}>{c.type}</Text>{c.quartier ? <Text style={s.t}>📍 {c.quartier}, {c.ville}</Text> : null}
             <View style={s.row}>
               <TouchableOpacity style={s.btn} onPress={() => Linking.openURL(c.lat && c.lng ? `https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}` : "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(c.nom + " " + c.ville))}><Text style={s.btnT}>📍 Itinéraire</Text></TouchableOpacity>
+              {c.tel ? <TouchableOpacity style={s.tel} onPress={() => Linking.openURL("tel:" + c.tel!.replace(/\s/g, "")).catch(() => {})}><Text style={s.telT}>📞 Appeler</Text></TouchableOpacity> : null}
             </View>
           </View>
         </FadeUp>))}

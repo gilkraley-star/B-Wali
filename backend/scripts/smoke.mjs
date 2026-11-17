@@ -172,6 +172,24 @@ const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJA
   r = await call("GET", `/catalog/courses/${cslug}/qcm`, { token: fille });
   check("le test s'affiche sans les bonnes réponses", r.status === 200 && r.data.length === 1 && r.data[0].correct === undefined);
 
+  // 10. Compte partenaire (sans photo) : propose une formation sans source ; centres de santé gérés par l'admin
+  r = await call("POST", "/admin/users", { token: admin, body: { email: "asso@test.org", fullName: "Association Test", role: "PARTENAIRE" } });
+  check("l'admin crée un compte partenaire sans photo", r.status === 201 && !!r.data.temporaryPassword, JSON.stringify(r.data));
+  r = await call("POST", "/auth/login", { body: { email: "asso@test.org", password: r.data.temporaryPassword } });
+  const asso = r.data && r.data.token;
+  check("le partenaire se connecte", !!asso);
+  r = await call("POST", "/pro/submit/courses", { token: asso, body: { title: "Formation du partenaire", summary: "Une formation proposée par un partenaire.", outlineMd: "Programme de la formation proposée par le partenaire", durationMin: 120, format: "VIDEOS", certified: true, hasTest: false } });
+  check("le partenaire propose une formation sans source", r.status === 201, JSON.stringify(r.data));
+  const partnerCourseId = r.data.id;
+  r = await call("POST", "/pro/submit/articles", { token: asso, body: { titleFr: "Article interdit", categorySlug: "cycle-menstruel", bodyFr: "x".repeat(60), sources: [] } });
+  check("le partenaire ne peut proposer que des formations", r.status === 403);
+  r = await call("POST", `/admin/review/courses/${partnerCourseId}`, { token: admin, body: { decision: "approve" } });
+  check("l'admin publie la formation sans source", r.status === 200, JSON.stringify(r.data));
+  r = await call("POST", "/admin/health-centers", { token: admin, body: { name: "Centre test", kind: "Clinique", city: "Bangui", lat: 4.36, lng: 18.55 } });
+  check("l'admin ajoute un centre de santé avec position", r.status === 201, JSON.stringify(r.data));
+  r = await call("GET", "/catalog/health-centers", { token: fille });
+  check("les centres de santé sont visibles côté appli avec leur position", r.status === 200 && r.data.some((c) => c.name === "Centre test" && c.lat === 4.36) && r.data.length >= 10, JSON.stringify(r.data).slice(0, 150));
+
   console.log(failures ? `\n${failures} vérification(s) en échec` : "\nToutes les vérifications passent.");
   process.exit(failures ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

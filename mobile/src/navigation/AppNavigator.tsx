@@ -1,5 +1,6 @@
 import React from "react";
 import { ActivityIndicator, View } from "react-native";
+import { withTop } from "../theme/inset";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -55,10 +56,13 @@ const CycleStack = createNativeStackNavigator();
 const LibraryStack = createNativeStackNavigator();
 const ForumStack = createNativeStackNavigator();
 
+const HomeTop = withTop(HomeScreen), SettingsTop = withTop(SettingsScreen), CycleTop = withTop(CycleScreen), LibraryTop = withTop(LibraryScreen), ForumTop = withTop(ForumScreen);
+const OnboardingTop = withTop(OnboardingScreen), LoginTop = withTop(LoginScreen), SignupTop = withTop(SignupScreen), RevenusTop = withTop(RevenusScreen);
+
 function CycleStackNavigator() {
   return (
     <CycleStack.Navigator screenOptions={{ headerShown: false }}>
-      <CycleStack.Screen name="CycleHome" component={CycleScreen} />
+      <CycleStack.Screen name="CycleHome" component={CycleTop} />
       <CycleStack.Screen name="Symptoms" component={SymptomsScreen} options={{ headerShown: true, title: "" }} />
       <CycleStack.Screen name="Reminders" component={RemindersScreen} options={{ headerShown: true, title: "" }} />
     </CycleStack.Navigator>
@@ -68,7 +72,7 @@ function CycleStackNavigator() {
 function LibraryStackNavigator() {
   return (
     <LibraryStack.Navigator screenOptions={{ headerShown: false }}>
-      <LibraryStack.Screen name="LibraryHome" component={LibraryScreen} />
+      <LibraryStack.Screen name="LibraryHome" component={LibraryTop} />
       <LibraryStack.Screen name="Article" component={ArticleScreen} options={{ headerShown: true, title: "" }} />
     </LibraryStack.Navigator>
   );
@@ -77,7 +81,7 @@ function LibraryStackNavigator() {
 function ForumStackNavigator() {
   return (
     <ForumStack.Navigator screenOptions={{ headerShown: false }}>
-      <ForumStack.Screen name="ForumHome" component={ForumScreen} />
+      <ForumStack.Screen name="ForumHome" component={ForumTop} />
       <ForumStack.Screen name="ForumCategory" component={ForumCategoryScreen} options={{ headerShown: true, title: "" }} />
       <ForumStack.Screen name="NewPost" component={NewPostScreen} options={{ headerShown: true, title: "" }} />
       <ForumStack.Screen name="Thread" component={ThreadScreen} options={{ headerShown: true, title: "" }} />
@@ -96,11 +100,11 @@ function MainTabs() {
         tabBarInactiveTintColor: colors.textMuted,
       }}
     >
-      <Tabs.Screen name="Home" component={HomeScreen} options={{ title: t("tab_home") }} />
+      <Tabs.Screen name="Home" component={HomeTop} options={{ title: t("tab_home") }} />
       <Tabs.Screen name="Cycle" component={CycleStackNavigator} options={{ title: t("tab_cycle") }} />
       <Tabs.Screen name="Library" component={LibraryStackNavigator} options={{ title: t("tab_library") }} />
       <Tabs.Screen name="Forum" component={ForumStackNavigator} options={{ title: t("tab_forum") }} />
-      <Tabs.Screen name="Settings" component={SettingsScreen} options={{ title: t("tab_settings") }} />
+      <Tabs.Screen name="Settings" component={SettingsTop} options={{ title: t("tab_settings") }} />
     </Tabs.Navigator>
   );
 }
@@ -108,9 +112,9 @@ function MainTabs() {
 function AuthFlow() {
   return (
     <AuthStack.Navigator screenOptions={{ headerShown: false }}>
-      <AuthStack.Screen name="Onboarding" component={OnboardingScreen} />
-      <AuthStack.Screen name="Login" component={LoginScreen} />
-      <AuthStack.Screen name="Signup" component={SignupScreen} />
+      <AuthStack.Screen name="Onboarding" component={OnboardingTop} />
+      <AuthStack.Screen name="Login" component={LoginTop} />
+      <AuthStack.Screen name="Signup" component={SignupTop} />
     </AuthStack.Navigator>
   );
 }
@@ -145,7 +149,7 @@ export default function AppNavigator() {
             <RootStack.Screen name="Live" component={LiveScreen} options={{ headerShown: false }} />
             <RootStack.Screen name="Formations" component={FormationsScreen} options={{ headerShown: true, title: "Formations" }} />
             <RootStack.Screen name="Partager" component={ShareScreen} options={{ headerShown: true, title: "Inviter une amie" }} />
-            <RootStack.Screen name="Revenus" component={RevenusScreen} options={{ headerShown: false }} />
+            <RootStack.Screen name="Revenus" component={RevenusTop} options={{ headerShown: false }} />
             <RootStack.Screen name="Professionnelles" component={ProfessionnellesScreen} options={{ headerShown: true, title: "Professionnelles" }} />
             <RootStack.Screen name="Urgence" component={UrgenceScreen} options={{ headerShown: true, title: "Urgence" }} />
             <RootStack.Screen name="ProSpace" component={ProSpaceScreen} options={{ headerShown: true, title: "Espace pro" }} />

@@ -27,7 +27,7 @@ function publicCourse(c: any) {
     outlineMd: c.outlineMd,
     sources: parseSources(c.sourcesJson),
     author: c.author
-      ? { fullName: c.author.fullName, profession: c.author.profession, photoUrl: c.author.photoUrl, certified: c.author.certified }
+      ? { fullName: c.author.fullName, profession: c.author.profession, photoUrl: c.author.photoUrl, certified: c.author.certified, role: c.author.role }
       : null,
   };
 }
@@ -191,6 +191,13 @@ router.get("/courses/:slug/certificate", requireAuth, async (req: AuthRequest, r
     courseTitle: course.title, dateText: "Fait à Bangui, le " + frDate((e.completedAt || course.liveEndedAt || e.createdAt).toISOString().slice(0, 10)), number: e.certificateNo,
   });
   res.json({ pdf: Buffer.from(pdf).toString("base64"), fileName: `Attestation-${e.certificateNo}.pdf` });
+});
+
+// GET /api/catalog/health-centers — centres de santé actifs du pays de la fille
+router.get("/health-centers", requireAuth, async (req: AuthRequest, res) => {
+  const me = await prisma.user.findUnique({ where: { id: req.userId }, select: { country: true } });
+  const list = await prisma.healthCenter.findMany({ where: { active: true, country: me?.country || "CF" }, orderBy: [{ sort: "asc" }, { createdAt: "asc" }] });
+  res.json(list.map((c) => ({ id: c.id, name: c.name, kind: c.kind, city: c.city, district: c.district, phone: c.phone, lat: c.lat, lng: c.lng })));
 });
 
 // GET /api/catalog/announcements — annonces actives pour le défilement de l'accueil
