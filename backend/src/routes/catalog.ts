@@ -18,7 +18,9 @@ function publicCourse(c: any) {
     partner: c.partner,
     durationMin: c.durationMin,
     trainerName: c.trainerName, trainerTitle: c.trainerTitle, location: c.location, seats: c.seats,
-    format: c.format,
+    format: c.format, certified: c.certified, hasTest: c.hasTest,
+    qcmReady: JSON.parse(c.qcmJson || "[]").length > 0,
+    videos: JSON.parse(c.videosJson || "[]").map((v: any) => ({ id: v.id, title: v.title })),
     startsAt: c.startsAt,
     postponedTo: c.postponedTo,
     state: c.state,
@@ -38,6 +40,47 @@ router.get("/courses", async (_req, res) => {
     orderBy: { createdAt: "asc" },
   });
   res.json(courses.map(publicCourse));
+});
+
+async function nextCertNo() {
+  const count = await prisma.enrollment.count({ where: { certificateNo: { not: null } } });
+  return `BW-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+}
+async function enrolled(req: AuthRequest, slug: string) {
+  const course = await prisma.course.findFirst({ where: { slug, status: "PUBLIE" } });
+  if (!course) return null;
+  const e = await prisma.enrollment.findUnique({ where: { userId_courseId: { userId: req.userId!, courseId: course.id } } });
+  return e ? { course, e } : null;
+}
+
+// GET /api/catalog/courses/:slug/videos — les vidéos (réservées aux inscrites) et ce qui est déjà vu
+router.get("/courses/:slug/videos", requireAuth, async (req: AuthRequest, res) => {
+  const x = await enrolled(req, req.params.slug);
+  if (!x) return res.status(403).json({ error: "Inscris-toi pour voir les vidéos." });
+  const done: string[] = JSON.parse(x.e.videosDoneJson || "[]");
+  res.json({ videos: JSON.parse(x.course.videosJson || "[]").map((v: any) => ({ id: v.id, title: v.title, url: v.url, done: done.includes(v.id) })), allDone: x.e.attendedToEnd });
+});
+// POST /api/catalog/courses/:slug/videos/:vid/done — une vidéo terminée ; la dernière ouvre le test (ou l'attestation)
+router.post("/courses/:slug/videos/:vid/done", requireAuth, async (req: AuthRequest, res) => {
+  const x = await enrolled(req, req.params.slug);
+  if (!x) return res.status(403).json({ error: "Inscris-toi d'abord." });
+  const vids: any[] = JSON.parse(x.course.videosJson || "[]");
+  if (!vids.some((v) => v.id === req.params.vid)) return res.status(404).json({ error: "Vidéo introuvable." });
+  const done: string[] = JSON.parse(x.e.videosDoneJson || "[]");
+  if (!done.includes(req.params.vid)) done.push(req.params.vid);
+  const all = vids.every((v) => done.includes(v.id));
+  await prisma.enrollment.update({ where: { id: x.e.id }, data: { videosDoneJson: JSON.stringify(done), attendedToEnd: all || x.e.attendedToEnd } });
+  res.json({ done: done.length, total: vids.length, allDone: all });
+});
+// POST /api/catalog/courses/:slug/complete — formation avec attestation mais sans test : l'attestation est délivrée à la fin
+router.post("/courses/:slug/complete", requireAuth, async (req: AuthRequest, res) => {
+  const x = await enrolled(req, req.params.slug);
+  if (!x) return res.status(403).json({ error: "Inscris-toi d'abord." });
+  if (!x.course.certified || x.course.hasTest) return res.status(400).json({ error: "Cette formation ne se termine pas ainsi." });
+  if (!x.e.attendedToEnd) return res.status(403).json({ error: "Termine d'abord toute la formation." });
+  const no = x.e.certificateNo || (await nextCertNo());
+  await prisma.enrollment.update({ where: { id: x.e.id }, data: { certificateNo: no, completedAt: x.e.completedAt || new Date() } });
+  res.json({ certificateNo: no });
 });
 
 // POST /api/catalog/courses/:slug/enroll — s'inscrire à une formation
@@ -102,7 +145,9 @@ router.get("/courses/:slug/qcm", requireAuth, async (req: AuthRequest, res) => {
   });
   if (!e) return res.status(403).json({ error: "Tu dois être inscrite pour passer le test." });
   if (!e.attendedToEnd) return res.status(403).json({ error: "Le test s'ouvre après avoir suivi le direct jusqu'à la fin." });
+  if (!course.certified || !course.hasTest) return res.status(400).json({ error: "Cette formation n'a pas de test." });
   const qcm = JSON.parse(course.qcmJson || "[]");
+  if (qcm.length === 0) return res.status(409).json({ error: "Le test sera bientôt disponible. Reviens un peu plus tard !" });
   // On n'envoie jamais les bonnes réponses au téléphone : la correction est faite par le serveur.
   res.json(qcm.map((q: any) => ({ q: q.q, options: q.options })));
 });
@@ -115,7 +160,9 @@ router.post("/courses/:slug/qcm", requireAuth, async (req: AuthRequest, res) => 
     where: { userId_courseId: { userId: req.userId!, courseId: course.id } },
   });
   if (!e || !e.attendedToEnd) return res.status(403).json({ error: "Test non autorisé." });
+  if (!course.certified || !course.hasTest) return res.status(400).json({ error: "Cette formation n'a pas de test." });
   const qcm = JSON.parse(course.qcmJson || "[]") as { correct: number }[];
+  if (qcm.length === 0) return res.status(409).json({ error: "Le test sera bientôt disponible." });
   const answers: unknown = req.body?.answers;
   if (!Array.isArray(answers) || answers.length !== qcm.length) {
     return res.status(400).json({ error: "Réponses incomplètes." });
@@ -124,10 +171,9 @@ router.post("/courses/:slug/qcm", requireAuth, async (req: AuthRequest, res) => 
   const passed = score / qcm.length >= 0.75;
   let certificateNo = e.certificateNo;
   if (passed && !certificateNo) {
-    const count = await prisma.enrollment.count({ where: { certificateNo: { not: null } } });
-    certificateNo = `BW-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+    certificateNo = await nextCertNo();
   }
-  await prisma.enrollment.update({ where: { id: e.id }, data: { score, certificateNo: passed ? certificateNo : e.certificateNo } });
+  await prisma.enrollment.update({ where: { id: e.id }, data: { score, certificateNo: passed ? certificateNo : e.certificateNo, completedAt: passed ? e.completedAt || new Date() : e.completedAt } });
   res.json({ score, total: qcm.length, passed, certificateNo: passed ? certificateNo : null });
 });
 
@@ -137,11 +183,12 @@ router.get("/courses/:slug/certificate", requireAuth, async (req: AuthRequest, r
   if (!course) return res.status(404).json({ error: "Formation introuvable." });
   const e = await prisma.enrollment.findUnique({ where: { userId_courseId: { userId: req.userId!, courseId: course.id } } });
   if (!e || !e.certificateNo) return res.status(403).json({ error: "Tu n'as pas encore ton attestation : suis le direct jusqu'au bout puis réussis le test." });
-  const tpl = course.certTemplateId ? await prisma.certTemplate.findUnique({ where: { id: course.certTemplateId } }) : null;
+  if (!course.certified) return res.status(400).json({ error: "Cette formation ne donne pas d'attestation." });
+  const tpl = (course.certTemplateId ? await prisma.certTemplate.findUnique({ where: { id: course.certTemplateId } }) : null) || (await prisma.certTemplate.findFirst({ orderBy: { createdAt: "asc" } }));
   if (!tpl) return res.status(409).json({ error: "Ton attestation est en préparation. Reviens bientôt !" });
   const pdf = await renderCertificate(tpl, {
     fullName: e.fullName || "—", birthDate: e.birthDate || "", birthPlace: e.birthPlace || "—",
-    courseTitle: course.title, dateText: "Fait à Bangui, le " + frDate((course.liveEndedAt || e.createdAt).toISOString().slice(0, 10)), number: e.certificateNo,
+    courseTitle: course.title, dateText: "Fait à Bangui, le " + frDate((e.completedAt || course.liveEndedAt || e.createdAt).toISOString().slice(0, 10)), number: e.certificateNo,
   });
   res.json({ pdf: Buffer.from(pdf).toString("base64"), fileName: `Attestation-${e.certificateNo}.pdf` });
 });

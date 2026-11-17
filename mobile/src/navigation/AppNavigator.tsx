@@ -25,6 +25,7 @@ import ShareScreen from "../screens/ShareScreen";
 import AssistantScreen from "../screens/AssistantScreen";
 import CourseScreen from "../screens/CourseScreen";
 import TestScreen from "../screens/TestScreen";
+import CourseVideosScreen from "../screens/CourseVideosScreen";
 import MonCarnetScreen from "../screens/MonCarnetScreen";
 import CarnetScreen from "../screens/CarnetScreen";
 import FloatingTabBar from "./FloatingTabBar";
@@ -136,6 +137,7 @@ export default function AppNavigator() {
             <RootStack.Screen name="Assistant" component={AssistantScreen} options={{ headerShown: true, title: "Conseillère IA" }} />
             <RootStack.Screen name="Course" component={CourseScreen} options={{ headerShown: true, title: "Formation" }} />
             <RootStack.Screen name="Test" component={TestScreen} options={{ headerShown: true, title: "Test" }} />
+            <RootStack.Screen name="CourseVideos" component={CourseVideosScreen} options={{ headerShown: true, title: "Vidéos" }} />
             <RootStack.Screen name="MonCarnet" component={MonCarnetScreen} options={{ headerShown: true, title: "Mon Carnet" }} />
             <RootStack.Screen name="Carnet" component={CarnetScreen} options={{ headerShown: true, title: "" }} />
             <RootStack.Screen name="JeunesMamans" component={JeunesMamansScreen} options={{ headerShown: true, title: "Jeunes mamans" }} />

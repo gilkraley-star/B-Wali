@@ -23,6 +23,7 @@ interface Course {
   state: string;
   outlineMd: string;
   sources: Source[];
+  format?: string; certified?: boolean; hasTest?: boolean; qcmReady?: boolean; videos?: { id: string; title: string }[];
 }
 interface Enrollment {
   courseSlug: string;
@@ -54,6 +55,10 @@ export default function FormationsScreen({ navigation }: any) {
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  const getCert = async (slug: string) => {
+    try { await apiRequest(`/catalog/courses/${slug}/complete`, { method: "POST" }); await load(); await downloadCert(slug); }
+    catch (err) { Alert.alert("Oups", err instanceof ApiError ? err.message : "Réessaie plus tard."); }
+  };
   const downloadCert = async (slug: string) => {
     try {
       const r = await apiRequest<{ pdf: string; fileName: string }>(`/catalog/courses/${slug}/certificate`);
@@ -100,7 +105,7 @@ export default function FormationsScreen({ navigation }: any) {
             </Text>
             {c.partner ? <Text style={styles.meta}>En partenariat avec {c.partner}</Text> : null}
             <Text style={styles.body}>{c.summary}</Text>
-            <Text style={styles.meta}>⏱ {c.durationMin >= 60 ? (c.durationMin / 60).toString().replace(".", ",") + " h" : c.durationMin + " min"} · 🎓 Attestation après le test</Text>
+            <Text style={styles.meta}>⏱ {c.durationMin >= 60 ? (c.durationMin / 60).toString().replace(".", ",") + " h" : c.durationMin + " min"} · {c.certified === false ? "📘 Sans attestation" : c.hasTest === false ? "🎓 Attestation à la fin" : "🎓 Attestation après le test"}</Text>
             {postponed ? (
               <Text style={styles.postponed}>
                 📅 Session reportée : la formatrice n'était pas disponible. Nouvelle date : {fmt(c.postponedTo)}. Ton inscription reste valable.
@@ -108,18 +113,20 @@ export default function FormationsScreen({ navigation }: any) {
             ) : (
               <Text style={styles.meta}>📅 {fmt(c.startsAt)}</Text>
             )}
-            {c.liveState === "EN_COURS" ? (
+            {e && c.videos && c.videos.length > 0 ? <PrimaryButton title={`▶️ Voir les vidéos (${c.videos.length})`} onPress={() => navigation.navigate("CourseVideos", { slug: c.slug, title: c.title })} /> : null}
+            {c.liveState === "EN_COURS" && c.format !== "VIDEOS" ? (
               <PrimaryButton title="🔴 Rejoindre le direct" onPress={() => navigation.navigate("Live", { slug: c.slug, host: false })} />
             ) : null}
             {isTeacher ? (
               <PrimaryButton title="🎥 Commencer le direct" onPress={() => navigation.navigate("Live", { slug: c.slug, host: true })} />
             ) : null}
-            {e && e.attendedToEnd && !e.certificateNo ? <PrimaryButton title="📝 Passer le test" onPress={() => navigation.navigate("Test", { slug: c.slug, title: c.title })} /> : null}
+            {e && e.attendedToEnd && !e.certificateNo && c.certified !== false && c.hasTest === false ? <PrimaryButton title="🎓 Obtenir mon attestation" onPress={() => getCert(c.slug)} /> : null}
+            {e && e.attendedToEnd && !e.certificateNo && c.certified !== false && c.hasTest !== false ? <PrimaryButton title="📝 Passer le test" onPress={() => navigation.navigate("Test", { slug: c.slug, title: c.title })} /> : null}
             {e && e.certificateNo ? <PrimaryButton title="📄 Télécharger mon attestation" onPress={() => downloadCert(c.slug)} /> : null}
             {e ? (
               <Text style={styles.ok}>
                 ✓ Inscrite
-                {e.certificateNo ? ` · Attestation ${e.certificateNo}` : e.attendedToEnd ? " · Test disponible" : " · Test après le direct"}
+                {e.certificateNo ? ` · Attestation ${e.certificateNo}` : c.certified === false ? "" : e.attendedToEnd ? (c.hasTest === false ? " · Formation terminée" : c.qcmReady === false ? " · Test bientôt disponible" : " · Test disponible") : c.hasTest === false ? " · Attestation à la fin" : c.format === "VIDEOS" ? " · Test après les vidéos" : " · Test après le direct"}
               </Text>
             ) : (
               <PrimaryButton title="Voir la formation et m'inscrire" onPress={() => navigation.navigate("Course", { course: c })} />

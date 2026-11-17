@@ -144,6 +144,20 @@ async function main() {
 
   console.log("Seed : catégories du forum…");
 
+  // Modèle d'attestation par défaut : l'équipe peut en créer d'autres ou le modifier dans l'admin (Attestations).
+  if ((await prisma.certTemplate.count()) === 0) {
+    const fs = await import("fs"), pth = await import("path");
+    const { UPLOAD_DIR } = await import("../utils/uploads");
+    const src = pth.join(__dirname, "..", "..", "public", "attestation-bg.png");
+    if (fs.existsSync(src)) {
+      fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+      fs.copyFileSync(src, pth.join(UPLOAD_DIR, "wali-attestation-bg.png"));
+      await prisma.certTemplate.create({ data: { name: "Attestation Wali", bgUrl: "/uploads/wali-attestation-bg.png", fieldsJson: JSON.stringify({ name: { x: 0.5, y: 0.46, size: 30 }, birth: { x: 0.5, y: 0.53, size: 14 }, course: { x: 0.5, y: 0.63, size: 22 }, date: { x: 0.3, y: 0.72, size: 12 }, number: { x: 0.5, y: 0.95, size: 10 } }), signersJson: JSON.stringify([{ name: "Gilhoube Néhémie", title: "Directeur général, NAXACI", sigUrl: null }]) } });
+    }
+  }
+  const tplDefault = await prisma.certTemplate.findFirst({ orderBy: { createdAt: "asc" } });
+  if (tplDefault) await prisma.course.updateMany({ where: { certTemplateId: null }, data: { certTemplateId: tplDefault.id } });
+
   // Thèmes généraux (avec icône) et leurs sous-thèmes. Les anciens slugs sont conservés pour ne perdre aucun message.
   type Sub = { slug: string; titleFr: string; restrictedTo?: "ADOLESCENTE" };
   const tree: { slug: string; titleFr: string; icon: string; subs: Sub[] }[] = [

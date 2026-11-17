@@ -184,7 +184,9 @@
       '<label>Programme détaillé (une ligne par thème)</label><textarea id="c_outline" rows="5"></textarea>' +
       '<div class="row"><div class="grow"><label>Nombre d’heures</label><input id="c_hours" type="number" step="0.5" min="0.5" value="2"></div>' +
       '<div class="grow"><label>Nombre de places (facultatif)</label><input id="c_seats" type="number" min="1"></div></div>' +
-      '<label>Type</label><select id="c_fmt"><option value="DIRECT">Direct (live dans l’appli)</option><option value="REPLAY">Replay / à son rythme</option></select>' +
+      '<label>Type</label><select id="c_fmt"><option value="DIRECT">Direct (live dans l’appli)</option><option value="VIDEOS">Vidéos à suivre à son rythme (tu les envoies après la création)</option><option value="REPLAY">Replay / à son rythme</option></select>' +
+      '<label><input id="c_cert" type="checkbox" style="width:auto" checked> 🎓 Formation avec attestation (certification)</label>' +
+      '<label><input id="c_test" type="checkbox" style="width:auto" checked> 📝 Avec un test à la fin <small>(tu remplis les questions juste après, ou plus tard)</small></label>' +
       '<label>Date et heure de début</label><input id="c_date" type="datetime-local">' +
       '<label>Lieu ou lien (facultatif)</label><input id="c_loc" placeholder="Salle FAFECA, Bangui · ou « En direct dans l’appli »">' +
       '<label>Partenaire (facultatif)</label><input id="c_partner" placeholder="FAFECA">' +
@@ -194,8 +196,33 @@
     return form + '<p><small>Ici tu publies chaque formation, tu programmes sa date et tu peux reporter une session. Le motif reste interne : les filles voient seulement « reportée — formatrice indisponible » avec la nouvelle date.</small></p>' +
       (state.courses.map(function(c){
         return '<div class="card"><div class="row"><div class="grow"><b>'+esc(c.title)+'</b><br><small>'+c.enrollments+' inscrite(s) · '+esc(c.status)+' · '+esc(c.state)+(c.startsAt?' · '+new Date(c.startsAt).toLocaleString("fr-FR"):'')+(c.postponedTo?' → reportée au '+new Date(c.postponedTo).toLocaleString("fr-FR"):'')+'</small></div></div>' +
-          (c.status !== "PUBLIE" ? '<div class="row" style="margin-top:8px"><span class="msg err grow">⚠️ Pas encore publiée : les filles ne la voient pas dans l’appli.</span><button class="ok" data-pubc="'+c.id+'">Publier maintenant</button></div>' : '<div style="margin-top:6px"><small>✅ Publiée : visible dans l’appli.</small></div>') + '<div class="row" style="margin-top:8px"><input type="datetime-local" data-dt="'+c.id+'" style="max-width:230px"><button class="s" data-sched="'+c.id+'">Programmer la date</button><button class="bad" data-post="'+c.id+'">Reporter à cette date</button></div></div>';
+          (c.status !== "PUBLIE" ? '<div class="row" style="margin-top:8px"><span class="msg err grow">⚠️ Pas encore publiée : les filles ne la voient pas dans l’appli.</span><button class="ok" data-pubc="'+c.id+'">Publier maintenant</button></div>' : '<div style="margin-top:6px"><small>✅ Publiée : visible dans l’appli.</small></div>') + '<div class="row" style="margin-top:8px"><input type="datetime-local" data-dt="'+c.id+'" style="max-width:230px"><button class="s" data-sched="'+c.id+'">Programmer la date</button><button class="bad" data-post="'+c.id+'">Reporter à cette date</button></div>' + contentPanel(c) + '</div>';
       }).join("") || '<div class="card">Aucune formation.</div>');
+  }
+
+  function qBlock(q, i){
+    q = q || { q: "", options: ["","","",""], correct: 0 };
+    var o = q.options.slice(); while (o.length < 4) o.push("");
+    return '<div class="card" data-qb style="background:#FFF9F4"><label>Question</label><input data-qq value="'+esc(q.q)+'" placeholder="Ex. Combien de temps dure en moyenne un cycle ?">' +
+      o.map(function(t, k){ return '<div class="row" style="margin-top:4px"><input type="radio" name="qr'+i+'" value="'+k+'" style="width:auto" '+(q.correct===k?'checked':'')+'><input class="grow" data-qo value="'+esc(t)+'" placeholder="Choix '+(k+1)+(k<2?'':' (facultatif)')+'"></div>'; }).join("") +
+      '<small>La pastille ronde indique la bonne réponse.</small> <button class="bad" data-qdel type="button">Supprimer la question</button></div>';
+  }
+  function contentPanel(c){
+    var tpls = state.tpls || [];
+    return '<details style="margin-top:10px"><summary><b>🎬 Vidéos, test et attestation</b></summary><div style="margin-top:8px">' +
+      '<div class="row"><label><input type="checkbox" data-ccert="'+c.id+'" style="width:auto" '+(c.certified?'checked':'')+'> 🎓 Avec attestation</label>' +
+      '<label><input type="checkbox" data-test="'+c.id+'" style="width:auto" '+(c.hasTest?'checked':'')+(c.certified?'':' disabled')+'> 📝 Avec test à la fin</label>' +
+      '<button class="s" data-saveopt="'+c.id+'">Enregistrer ces options</button></div>' +
+      '<p><b>Vidéos</b> <small>(MP4 ou MOV, 800 Mo maximum chacune ; les filles les voient dans l’ordre)</small></p>' +
+      ((c.videos||[]).map(function(v,i){ return '<div class="row"><span class="grow">'+(i+1)+'. '+esc(v.title)+'</span><button class="bad" data-vdel="'+c.id+'" data-vid="'+v.id+'">Supprimer</button></div>'; }).join("") || '<small>Aucune vidéo pour l’instant.</small>') +
+      '<div class="row" style="margin-top:8px"><input class="grow" data-vtitle="'+c.id+'" placeholder="Titre de la vidéo (ex. Leçon 1 : comprendre son cycle)"><input type="file" accept="video/mp4,video/quicktime" data-vfile="'+c.id+'"><button class="p" data-vsend="'+c.id+'">Envoyer la vidéo</button></div><div data-vprog="'+c.id+'"></div>' +
+      (c.hasTest && c.certified ? '<p style="margin-top:14px"><b>Test à la fin</b> <small>(75 % de bonnes réponses pour réussir ; tu peux le remplir plus tard : tant qu’il est vide, les filles voient « test bientôt disponible »)</small></p>' +
+        '<div data-qlist="'+c.id+'">' + (c.qcm||[]).map(function(q,i){ return qBlock(q, c.id+"_"+i); }).join("") + '</div>' +
+        '<div class="row"><button class="s" data-qadd="'+c.id+'">➕ Ajouter une question</button><button class="p" data-qsave="'+c.id+'">Enregistrer le test</button></div>' : '') +
+      (c.certified ? '<p style="margin-top:14px"><b>Attestation</b> <small>(le nom, la date et le lieu de naissance, le titre et le numéro s’écrivent automatiquement pour chaque apprenante)</small></p>' +
+        '<div class="row"><select data-tplsel="'+c.id+'" class="grow">'+tpls.map(function(t){ return '<option value="'+t.id+'" '+(c.certTemplateId===t.id?'selected':'')+'>'+esc(t.name)+'</option>'; }).join("")+'</select>' +
+        '<button class="s" data-prev="'+(c.certTemplateId||(tpls[0]&&tpls[0].id)||"")+'">👁 Voir un aperçu</button></div><small>Pour changer le fond, les signatures ou le cachet : onglet « Attestations ».</small>' : '') +
+      '</div></details>';
   }
 
 
@@ -356,17 +383,44 @@
     $$("[data-subadd]").forEach(function(b){ b.onclick = act(async function(){ var i = document.querySelector('[data-subin="'+b.dataset.subadd+'"]'); await api("/admin/forum-categories", { method:"POST", body:{ titleFr: i.value, parentId: b.dataset.subadd } }); await load(); flash("Sous-thème ajouté."); }); });
     $$("[data-fren]").forEach(function(b){ b.onclick = act(async function(){ var n = prompt("Nouveau nom :"); if (!n) return; await api("/admin/forum-categories/"+b.dataset.fren, { method:"PATCH", body:{ titleFr: n } }); await load(); flash("Renommé."); }); });
     $$("[data-frdel]").forEach(function(b){ b.onclick = act(async function(){ if (!confirm("Supprimer ce thème ?")) return; await api("/admin/forum-categories/"+b.dataset.frdel, { method:"DELETE" }); await load(); flash("Supprimé."); }); });
+    $$("[data-ccert]").forEach(function(b){ b.onchange = function(){ var t = document.querySelector('[data-test="'+b.dataset.ccert+'"]'); if (t){ t.disabled = !b.checked; if(!b.checked) t.checked = false; } }; });
+    $$("[data-saveopt]").forEach(function(b){ b.onclick = act(async function(){ var id=b.dataset.saveopt; await api("/admin/courses/"+id+"/content",{method:"PATCH",body:{certified:document.querySelector('[data-ccert="'+id+'"]').checked,hasTest:document.querySelector('[data-test="'+id+'"]').checked}}); await load(); flash("Options enregistrées."); }); });
+    $$("[data-vsend]").forEach(function(b){ b.onclick = function(){
+      var id=b.dataset.vsend, f=document.querySelector('[data-vfile="'+id+'"]').files[0], t=document.querySelector('[data-vtitle="'+id+'"]').value.trim(), box=document.querySelector('[data-vprog="'+id+'"]');
+      if(!f) return flash("Choisis d’abord la vidéo.","err");
+      b.disabled = true; var x = new XMLHttpRequest();
+      x.open("POST", API+"/admin/courses/"+id+"/videos?title="+encodeURIComponent(t||f.name.replace(/\.[^.]+$/,"")));
+      x.setRequestHeader("Authorization","Bearer "+token); x.setRequestHeader("Content-Type", f.type||"video/mp4");
+      x.upload.onprogress = function(e){ if(e.lengthComputable) box.innerHTML = '<div style="height:8px;background:#F0E0E6;border-radius:4px;overflow:hidden"><div style="height:8px;background:#FF5470;width:'+Math.round(e.loaded/e.total*100)+'%"></div></div><small>Envoi… '+Math.round(e.loaded/e.total*100)+' % (ne ferme pas cette page)</small>'; };
+      x.onload = async function(){ b.disabled=false; var r={}; try{ r=JSON.parse(x.responseText); }catch(e){} if(x.status<300){ await load(); flash("Vidéo ajoutée."); } else { box.innerHTML=''; flash(r.error||("Erreur "+x.status),"err"); } };
+      x.onerror = function(){ b.disabled=false; flash("Envoi interrompu. Vérifie la connexion et réessaie.","err"); };
+      x.send(f);
+    }; });
+    $$("[data-vdel]").forEach(function(b){ b.onclick = act(async function(){ if(!confirm("Supprimer cette vidéo ?")) return; await api("/admin/courses/"+b.dataset.vdel+"/videos/"+b.dataset.vid,{method:"DELETE"}); await load(); flash("Vidéo supprimée."); }); });
+    $$("[data-qadd]").forEach(function(b){ b.onclick = function(){ var l=document.querySelector('[data-qlist="'+b.dataset.qadd+'"]'); var d=document.createElement("div"); d.innerHTML=qBlock(null,b.dataset.qadd+"_n"+Date.now()); l.appendChild(d.firstChild); bindQdel(); }; });
+    function bindQdel(){ $$("[data-qdel]").forEach(function(b){ b.onclick = function(){ b.closest("[data-qb]").remove(); }; }); }
+    bindQdel();
+    $$("[data-qsave]").forEach(function(b){ b.onclick = act(async function(){
+      var qs=[]; var ok=true;
+      document.querySelectorAll('[data-qlist="'+b.dataset.qsave+'"] [data-qb]').forEach(function(bl){
+        var q=bl.querySelector("[data-qq]").value.trim(); var opts=[], correct=0, k=0;
+        bl.querySelectorAll("[data-qo]").forEach(function(inp, idx){ var t=inp.value.trim(); if(t){ if(bl.querySelectorAll('input[type=radio]')[idx].checked) correct=opts.length; opts.push(t); } });
+        if(!q && !opts.length) return; if(!q || opts.length<2) ok=false; qs.push({q:q,options:opts,correct:correct});
+      });
+      if(!ok) return flash("Chaque question a un texte et au moins 2 choix.","err");
+      await api("/admin/courses/"+b.dataset.qsave+"/content",{method:"PATCH",body:{qcm:qs}}); await load(); flash("Test enregistré ("+qs.length+" question"+(qs.length>1?"s":"")+").");
+    }); });
     var cg = document.getElementById("c_go");
     if (cg) {
       document.getElementById("c_trainer").onchange = function(){ document.getElementById("c_newtr").style.display = this.value === "__new" ? "block" : "none"; };
       cg.onclick = act(async function(){
         var tr = document.getElementById("c_trainer").value, d = document.getElementById("c_date").value;
-        var body = { title: v("c_title"), summary: v("c_sum"), outlineMd: v("c_outline"), hours: +v("c_hours"), format: v("c_fmt"), location: v("c_loc") || undefined, partner: v("c_partner") || undefined };
+        var body = { title: v("c_title"), summary: v("c_sum"), outlineMd: v("c_outline"), hours: +v("c_hours"), format: v("c_fmt"), certified: document.getElementById("c_cert").checked, hasTest: document.getElementById("c_test").checked, location: v("c_loc") || undefined, partner: v("c_partner") || undefined };
         if (v("c_seats")) body.seats = +v("c_seats");
         if (d) body.startsAt = new Date(d).toISOString();
         if (tr && tr !== "__new") body.trainerId = tr; else { body.trainerName = v("c_trname"); body.trainerTitle = v("c_trtitle") || undefined; }
         await api("/admin/courses", { method: "POST", body: body });
-        await load(); flash("Formation publiée : elle apparaît maintenant dans l’appli.");
+        await load(); flash("Formation publiée. Ouvre « Vidéos, test et attestation » sur sa carte pour envoyer les vidéos et remplir le test.");
       });
     }
     $$("[data-pubc]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/review/courses/"+b.dataset.pubc, {method:"POST", body:{decision:"approve"}}); flash("Formation publiée : elle apparaît dans l’appli."); await load(); }); });

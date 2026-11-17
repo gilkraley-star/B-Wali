@@ -243,6 +243,9 @@ model Course {
   liveEndedAt   DateTime?
   outlineMd   String   // plan du cours en markdown
   qcmJson     String   @default("[]") // [{q, options[], correct}]
+  certified   Boolean  @default(true)  // délivre une attestation
+  hasTest     Boolean  @default(true)  // test (QCM) à la fin
+  videosJson  String   @default("[]")  // [{id, title, url}] vidéos à suivre
   sourcesJson String   @default("[]")
   status      String   @default("A_VALIDER")
   reviewNote  String?
@@ -267,6 +270,8 @@ model Enrollment {
   fullName   String?  // vraies informations pour l'attestation, demandées à l'inscription
   birthDate  String?  // AAAA-MM-JJ
   birthPlace String?
+  videosDoneJson String @default("[]") // ids des vidéos terminées
+  completedAt DateTime?
   createdAt  DateTime @default(now())
 
   @@unique([userId, courseId])

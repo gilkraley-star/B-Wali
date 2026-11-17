@@ -141,6 +141,37 @@ const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJA
   r = await call("GET", `/catalog/courses/${slug}/qcm`, { token: fille });
   check("test verrouillé tant que la fille n'a pas suivi le direct jusqu'au bout", r.status === 403);
 
+  // 9. Formation en vidéos, avec attestation sans test : création, vidéo, suivi, attestation
+  r = await call("POST", "/admin/courses", { token: admin, body: { title: "Formation vidéo test", summary: "Une formation en vidéos pour le test.", outlineMd: "Leçon 1\nLeçon 2", hours: 1, format: "VIDEOS", certified: true, hasTest: false, trainerName: "Mme Test" } });
+  check("l'admin crée une formation en vidéos sans test", r.status === 201, JSON.stringify(r.data));
+  const cid = r.data.id, cslug = r.data.slug;
+  const mp4 = Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from("ftypmp42"), Buffer.alloc(2000, 1)]);
+  let up = await fetch(base + "/api/admin/courses/" + cid + "/videos?title=" + encodeURIComponent("Leçon 1"), { method: "POST", headers: { Authorization: "Bearer " + admin, "Content-Type": "video/mp4" }, body: mp4 });
+  check("envoi d'une vidéo par l'admin", up.status === 201, String(up.status));
+  up = await fetch(base + "/api/admin/courses/" + cid + "/videos?title=faux", { method: "POST", headers: { Authorization: "Bearer " + admin, "Content-Type": "video/mp4" }, body: Buffer.alloc(3000, 7) });
+  check("un fichier qui n'est pas une vidéo est refusé", up.status === 400, String(up.status));
+  r = await call("POST", `/catalog/courses/${cslug}/enroll`, { token: fille, body: { fullName: "Marie Test Ngaïssona", birthDate: "2008-03-14", birthPlace: "Bangui" } });
+  r = await call("GET", `/catalog/courses/${cslug}/videos`, { token: fille });
+  check("la fille inscrite voit les vidéos", r.status === 200 && r.data.videos.length === 1 && r.data.videos[0].url.startsWith("/uploads/courses/"), JSON.stringify(r.data));
+  r = await call("POST", `/catalog/courses/${cslug}/complete`, { token: fille });
+  check("pas d'attestation avant d'avoir tout vu", r.status === 403);
+  const vid = (await call("GET", `/catalog/courses/${cslug}/videos`, { token: fille })).data.videos[0].id;
+  r = await call("POST", `/catalog/courses/${cslug}/videos/${vid}/done`, { token: fille });
+  check("dernière vidéo vue : formation terminée", r.status === 200 && r.data.allDone === true);
+  r = await call("POST", `/catalog/courses/${cslug}/complete`, { token: fille });
+  check("attestation délivrée sans test", r.status === 200 && !!r.data.certificateNo, JSON.stringify(r.data));
+  r = await call("GET", `/catalog/courses/${cslug}/certificate`, { token: fille });
+  check("l'attestation PDF est générée avec le modèle par défaut", r.status === 200 && !!r.data.pdf, JSON.stringify(r.data).slice(0, 120));
+  r = await call("GET", `/catalog/courses/${cslug}/qcm`, { token: fille });
+  check("pas de test pour cette formation", r.status === 400);
+  r = await call("PATCH", `/admin/courses/${cid}/content`, { token: admin, body: { certified: false } });
+  r = await call("GET", `/catalog/courses/${cslug}/certificate`, { token: fille });
+  check("formation sans certification : plus d'attestation", r.status === 400);
+  r = await call("PATCH", `/admin/courses/${cid}/content`, { token: admin, body: { certified: true, hasTest: true, qcm: [{ q: "2 + 2 ?", options: ["3", "4"], correct: 1 }] } });
+  check("l'admin remplit le test", r.status === 200);
+  r = await call("GET", `/catalog/courses/${cslug}/qcm`, { token: fille });
+  check("le test s'affiche sans les bonnes réponses", r.status === 200 && r.data.length === 1 && r.data[0].correct === undefined);
+
   console.log(failures ? `\n${failures} vérification(s) en échec` : "\nToutes les vérifications passent.");
   process.exit(failures ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

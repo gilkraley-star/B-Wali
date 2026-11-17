@@ -8,6 +8,7 @@ import { savePhotoFromDataUrl, deletePhoto } from "../utils/uploads";
 import { parseSources, sourcesSchema } from "../utils/sources";
 import { articleInput, courseInput, incomeInput, slugify } from "../utils/content";
 import { renderCertificate, frDate } from "../utils/certificate";
+import { saveCourseVideo, deleteCourseVideo } from "../utils/courseVideo";
 
 const router = Router();
 router.use(requireAuth, requireRole("ADMIN"));
@@ -292,7 +293,7 @@ router.put("/content/:type/:id/sources", async (req: AuthRequest, res) => {
 // ---------------------------------------------------------------------------
 router.get("/courses", async (_req, res) => {
   const courses = await prisma.course.findMany({ include: { _count: { select: { enrollments: true } } }, orderBy: { createdAt: "asc" } });
-  res.json(courses.map((c) => ({ id: c.id, slug: c.slug, title: c.title, status: c.status, state: c.state, certTemplateId: c.certTemplateId, startsAt: c.startsAt, postponedTo: c.postponedTo, enrollments: c._count.enrollments })));
+  res.json(courses.map((c) => ({ id: c.id, slug: c.slug, title: c.title, status: c.status, state: c.state, certTemplateId: c.certTemplateId, startsAt: c.startsAt, postponedTo: c.postponedTo, enrollments: c._count.enrollments, format: c.format, certified: c.certified, hasTest: c.hasTest, qcm: JSON.parse(c.qcmJson || "[]"), videos: JSON.parse(c.videosJson || "[]").map((v: any) => ({ id: v.id, title: v.title })) })));
 });
 
 // ---------------------------------------------------------------------------
@@ -337,7 +338,7 @@ router.post("/courses", async (req: AuthRequest, res) => {
   const p = z.object({
     title: z.string().trim().min(4).max(140), summary: z.string().trim().min(10).max(600), outlineMd: z.string().trim().min(10).max(8000),
     icon: z.string().max(8).optional(), partner: z.string().max(80).optional(), hours: z.number().min(0.5).max(200),
-    format: z.enum(["DIRECT", "REPLAY"]), startsAt: z.string().datetime().optional(), location: z.string().max(140).optional(), seats: z.number().int().min(1).max(5000).optional(),
+    format: z.enum(["DIRECT", "REPLAY", "VIDEOS"]), certified: z.boolean().optional(), hasTest: z.boolean().optional(), startsAt: z.string().datetime().optional(), location: z.string().max(140).optional(), seats: z.number().int().min(1).max(5000).optional(),
     trainerId: z.string().optional(), trainerName: z.string().max(80).optional(), trainerTitle: z.string().max(80).optional(),
   }).safeParse(req.body);
   if (!p.success) return res.status(400).json({ error: p.error.issues[0]?.message || "Informations incomplètes." });
@@ -353,12 +354,51 @@ router.post("/courses", async (req: AuthRequest, res) => {
   while (await prisma.course.findUnique({ where: { slug } })) slug = slugify(d.title) + "-" + ++n;
   const c = await prisma.course.create({ data: {
     slug, title: d.title, summary: d.summary, outlineMd: d.outlineMd, icon: d.icon || "🎓", partner: d.partner, durationMin: Math.round(d.hours * 60),
-    format: d.format, startsAt: d.startsAt ? new Date(d.startsAt) : null, location: d.location, seats: d.seats,
+    format: d.format, certified: d.certified ?? true, hasTest: d.certified === false ? false : d.hasTest ?? true, certTemplateId: (await prisma.certTemplate.findFirst({ orderBy: { createdAt: "asc" } }))?.id ?? null,
+    startsAt: d.startsAt ? new Date(d.startsAt) : null, location: d.location, seats: d.seats,
     trainerId: d.trainerId, trainerName, trainerTitle, status: "PUBLIE", authorId: d.trainerId ?? null,
     sourcesJson: JSON.stringify([{ title: "Programme défini par l'équipe Wali" + (d.partner ? " avec " + d.partner : ""), url: "" }]),
   } });
   await audit(req.userId, "CREATE_COURSE", c.title);
   res.status(201).json({ id: c.id, slug: c.slug });
+});
+
+// Contenu d'une formation : options (attestation, test), questions du test, vidéos.
+const qcmSchema = z.array(z.object({ q: z.string().trim().min(3).max(300), options: z.array(z.string().trim().min(1).max(160)).min(2).max(5), correct: z.number().int().min(0).max(4) }).refine((x) => x.correct < x.options.length, { message: "Bonne réponse invalide." })).max(60);
+router.patch("/courses/:id/content", async (req: AuthRequest, res) => {
+  const p = z.object({ certified: z.boolean().optional(), hasTest: z.boolean().optional(), qcm: qcmSchema.optional() }).safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: p.error.issues[0]?.message || "Test invalide : chaque question a une bonne réponse parmi ses choix." });
+  const data: any = {};
+  if (p.data.certified !== undefined) { data.certified = p.data.certified; if (!p.data.certified) data.hasTest = false; }
+  if (p.data.hasTest !== undefined && p.data.certified !== false) data.hasTest = p.data.hasTest;
+  if (p.data.qcm) data.qcmJson = JSON.stringify(p.data.qcm);
+  const c = await prisma.course.update({ where: { id: req.params.id }, data });
+  await audit(req.userId, "UPDATE_COURSE_CONTENT", c.title);
+  res.json({ ok: true });
+});
+// Envoi d'une vidéo : le fichier est envoyé tel quel (corps brut), le titre est dans l'adresse.
+router.post("/courses/:id/videos", async (req: AuthRequest, res) => {
+  const course = await prisma.course.findUnique({ where: { id: req.params.id } });
+  if (!course) { req.resume(); return res.status(404).json({ error: "Formation introuvable." }); }
+  const title = String(req.query.title || "").trim().slice(0, 120) || "Leçon " + (JSON.parse(course.videosJson || "[]").length + 1);
+  try {
+    const url = await saveCourseVideo(req);
+    const fresh = await prisma.course.findUnique({ where: { id: course.id } });
+    const list = JSON.parse(fresh!.videosJson || "[]");
+    list.push({ id: require("crypto").randomUUID(), title, url });
+    await prisma.course.update({ where: { id: course.id }, data: { videosJson: JSON.stringify(list), format: "VIDEOS" } });
+    await audit(req.userId, "ADD_COURSE_VIDEO", course.title + " — " + title);
+    res.status(201).json({ videos: list });
+  } catch (e: any) { res.status(400).json({ error: e.message || "Envoi impossible." }); }
+});
+router.delete("/courses/:id/videos/:vid", async (req: AuthRequest, res) => {
+  const course = await prisma.course.findUnique({ where: { id: req.params.id } });
+  if (!course) return res.status(404).json({ error: "Formation introuvable." });
+  const list = JSON.parse(course.videosJson || "[]");
+  const v = list.find((x: any) => x.id === req.params.vid);
+  deleteCourseVideo(v?.url);
+  await prisma.course.update({ where: { id: course.id }, data: { videosJson: JSON.stringify(list.filter((x: any) => x.id !== req.params.vid)) } });
+  res.json({ ok: true });
 });
 
 router.patch("/courses/:id/schedule", async (req: AuthRequest, res) => {
