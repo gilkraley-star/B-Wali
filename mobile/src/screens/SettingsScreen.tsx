@@ -7,6 +7,7 @@ import { useI18n } from "../i18n";
 import { apiOrigin, apiRequest, setToken } from "../api/client";
 import { remindersEnabled, setReminders } from "../notifications";
 import { Lock, checkLock, clearLock, getLock, setLock } from "../lock";
+import SosContactCard from "../components/SosContactCard";
 import { PatternPad, PinPad } from "../components/LockScreen";
 import { Modal } from "react-native";
 import { KeyboardTapDismiss, Backdrop } from "../theme/kb";
@@ -89,6 +90,9 @@ export default function SettingsScreen({ navigation }: any) {
             <Text style={{ fontSize: 22 }}>💌</Text><Text style={s.inviteT}>Inviter une amie (lien, QR, WhatsApp)</Text><Text style={{ color: "#1E5B3E", fontSize: 20 }}>›</Text>
           </TouchableOpacity>
         </FadeUp>
+
+        <Text style={s.sec}>SOS</Text>
+        <SosContactCard />
 
         <Text style={s.sec}>LANGUE</Text>
         <View style={s.seg}>

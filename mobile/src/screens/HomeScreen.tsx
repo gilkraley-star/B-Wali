@@ -4,7 +4,8 @@ import { WelcomeBurst } from "../components/Intro";
 import { useFocusEffect } from "@react-navigation/native";
 import { estimateLocal, getCycleLen, loadLocalPeriods } from "../storage/localCycle";
 import { useTopPad } from "../theme/inset";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { sendSos } from "../sos";
+import { Alert, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { apiRequest } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import HomeCarousel from "../components/HomeCarousel";
@@ -40,6 +41,12 @@ export default function HomeScreen({ navigation }: any) {
   useEffect(() => { (async () => { try { const w = await AsyncStorage.getItem("wali.welcome"); if (w) { await AsyncStorage.removeItem("wali.welcome"); setWelcome(w); } } catch {} })(); }, []);
   const isPro = ["PROFESSIONNELLE", "COACH", "FORMATRICE", "PARTENAIRE"].includes(user?.role || "");
   const topPad = useTopPad();
+  const sosN = React.useRef(0); const sosT = React.useRef<any>(null);
+  const sosPress = () => {
+    sosN.current += 1; clearTimeout(sosT.current);
+    if (sosN.current >= 3) { sosN.current = 0; sendSos(() => Alert.alert("SOS", "Choisis d'abord une personne de confiance dans Réglages, pour qu'elle reçoive ton alerte.", [{ text: "Plus tard" }, { text: "Choisir", onPress: () => navigation.navigate("Settings") }])); return; }
+    sosT.current = setTimeout(() => { const c = sosN.current; sosN.current = 0; if (c === 1) navigation.navigate("Urgence"); }, 520);
+  };
   const [gridH, setGridH] = useState(0);
   const rowH = gridH / 3;
   const icoS = Math.max(30, Math.min(46, rowH * 0.46));
@@ -51,7 +58,7 @@ export default function HomeScreen({ navigation }: any) {
       <Float delay={4000} style={[s.blob, { top: 430, right: -70, width: 150, height: 150, borderRadius: 75, backgroundColor: "#E7D5FF", opacity: 0.5 }]} />
 
       <Pulse style={[s.sosWrap, { top: 20 + topPad }]}>
-        <TouchableOpacity style={s.sos} onPress={() => navigation.navigate("Urgence")} accessibilityRole="button" accessibilityLabel="SOS urgence"><Text style={s.sosT}>SOS</Text></TouchableOpacity>
+        <TouchableOpacity style={s.sos} onPress={sosPress} accessibilityRole="button" accessibilityLabel="SOS urgence. Trois appuis rapides : alerter ma personne de confiance"><Text style={s.sosT}>SOS</Text></TouchableOpacity>
       </Pulse>
 
       <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 26, paddingBottom: 94 }}>
