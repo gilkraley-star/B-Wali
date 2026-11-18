@@ -7,11 +7,12 @@ import express from "express";
 import { requireAuth, requireModerator, AuthRequest } from "../middleware/auth";
 import { saveMedia, isForumMediaUrl, deleteMedia, MAX_VIDEO_BYTES } from "../utils/media";
 import { MAX_MESSAGES, RETENTION_HOURS } from "../utils/retention";
+import { ar } from "../utils/asyncRoute";
 
 const router = Router();
 
 // GET /api/forum/categories
-router.get("/categories", requireAuth, async (req: AuthRequest, res) => {
+router.get("/categories", requireAuth, ar(async (req: AuthRequest, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.userId } });
   const categories = await prisma.forumCategory.findMany({ orderBy: [{ sort: "asc" }] });
   const last = await prisma.forumPost.groupBy({ by: ["categoryId"], where: { isHidden: false }, _max: { lastActivityAt: true }, _count: { _all: true } });
@@ -28,7 +29,7 @@ router.get("/categories", requireAuth, async (req: AuthRequest, res) => {
   const out = withInfo.map((c: any) => ({ ...c, lastPostAt: c.parentId ? c.lastPostAt : Math.max(c.lastPostAt, childMax(c.id)), postCount: c.parentId ? c.postCount : c.postCount + childN(c.id) }));
   out.sort((a: any, b: any) => b.lastPostAt - a.lastPostAt || a.sort - b.sort);
   res.json(out);
-});
+}));
 
 const postSchema = z.object({
   categoryId: z.string(),
@@ -41,7 +42,7 @@ function maskAuthor<T extends { anonymous?: boolean; author?: any }>(x: T): T {
 }
 
 // POST /api/forum/posts — publication soumise à modération avant affichage public
-router.post("/posts", requireAuth, async (req: AuthRequest, res) => {
+router.post("/posts", requireAuth, ar(async (req: AuthRequest, res) => {
   const susp = await suspensionError(req.userId!);
   if (susp) return res.status(403).json({ error: susp });
   const user = await prisma.user.findUnique({ where: { id: req.userId } });
@@ -64,10 +65,10 @@ router.post("/posts", requireAuth, async (req: AuthRequest, res) => {
   });
   broadcast({ t: "post", cat: post.categoryId });
   res.status(201).json(post);
-});
+}));
 
 // GET /api/forum/categories/:categoryId/posts — seuls les posts modérés et non masqués
-router.get("/categories/:categoryId/posts", requireAuth, async (req: AuthRequest, res) => {
+router.get("/categories/:categoryId/posts", requireAuth, ar(async (req: AuthRequest, res) => {
   const kids = await prisma.forumCategory.findMany({ where: { parentId: req.params.categoryId }, select: { id: true } });
   const posts = await prisma.forumPost.findMany({
     where: { categoryId: { in: [req.params.categoryId, ...kids.map((k: any) => k.id)] }, isHidden: false },
@@ -80,10 +81,10 @@ router.get("/categories/:categoryId/posts", requireAuth, async (req: AuthRequest
     const { comments, ...rest } = maskAuthor(p);
     return { ...rest, lastText: last ? (last.body || (last.mediaType === "audio" ? "🎤 Message vocal" : last.mediaType === "video" ? "🎬 Vidéo" : "🖼️ Photo")) : p.body };
   }));
-});
+}));
 
 // GET /api/forum/posts/:id
-router.get("/posts/:id", requireAuth, async (req: AuthRequest, res) => {
+router.get("/posts/:id", requireAuth, ar(async (req: AuthRequest, res) => {
   const post = await prisma.forumPost.findUnique({
     where: { id: req.params.id },
     include: {
@@ -109,7 +110,7 @@ router.get("/posts/:id", requireAuth, async (req: AuthRequest, res) => {
     return { ...rest, replyTo: rt, mine: c.authorId === me, reactionCounts: counts, myReaction: reactions.find((r: any) => r.userId === me)?.emoji ?? null };
   });
   res.json({ ...maskAuthor(post), mine: post.authorId === me, comments, maxMessages: MAX_MESSAGES, retentionHours: RETENTION_HOURS });
-});
+}));
 
 const commentSchema = z
   .object({
@@ -128,8 +129,7 @@ const uploadsByUser = new Map<string, number[]>();
 router.post(
   "/media",
   requireAuth,
-  express.raw({ type: ["image/*", "video/*", "audio/*"], limit: MAX_VIDEO_BYTES + 1024 }),
-  async (req: AuthRequest, res) => {
+  express.raw({ type: ["image/*", "video/*", "audio/*"], limit: MAX_VIDEO_BYTES + 1024 }), ar(async (req: AuthRequest, res) => {
     const susp = await suspensionError(req.userId!);
     if (susp) return res.status(403).json({ error: susp });
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
@@ -146,10 +146,10 @@ router.post(
       res.status(400).json({ error: e.message });
     }
   }
-);
+));
 
 // POST /api/forum/posts/:id/comments
-router.post("/posts/:id/comments", requireAuth, async (req: AuthRequest, res) => {
+router.post("/posts/:id/comments", requireAuth, ar(async (req: AuthRequest, res) => {
   const susp = await suspensionError(req.userId!);
   if (susp) return res.status(403).json({ error: susp });
   const user = await prisma.user.findUnique({ where: { id: req.userId } });
@@ -177,11 +177,11 @@ router.post("/posts/:id/comments", requireAuth, async (req: AuthRequest, res) =>
   await prisma.forumPost.update({ where: { id: post.id }, data: { lastActivityAt: new Date() } });
   broadcast({ t: "comment", post: post.id });
   res.status(201).json(comment);
-});
+}));
 
 // --- Réactions emoji sur les messages ---
 const EMOJIS = ["❤️", "👍", "😂", "😮", "😢", "🙏", "👏", "💪"];
-router.put("/comments/:id/reaction", requireAuth, async (req: AuthRequest, res) => {
+router.put("/comments/:id/reaction", requireAuth, ar(async (req: AuthRequest, res) => {
   const susp = await suspensionError(req.userId!);
   if (susp) return res.status(403).json({ error: susp });
   const emoji = typeof req.body?.emoji === "string" ? req.body.emoji : "";
@@ -200,7 +200,7 @@ router.put("/comments/:id/reaction", requireAuth, async (req: AuthRequest, res) 
   }
   broadcast({ t: "comment", post: c.postId });
   res.json({ ok: true });
-});
+}));
 
 // Motifs proposés à la personne qui signale (l'appli les affiche tels quels)
 const REASONS = [
@@ -226,7 +226,7 @@ const reportSchema = z.object({
 });
 
 // POST /api/forum/reports
-router.post("/reports", requireAuth, async (req: AuthRequest, res) => {
+router.post("/reports", requireAuth, ar(async (req: AuthRequest, res) => {
   const parsed = reportSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
   if (!parsed.data.postId && !parsed.data.commentId) {
@@ -254,46 +254,46 @@ router.post("/reports", requireAuth, async (req: AuthRequest, res) => {
   // On ne dit jamais à la personne qui signale ce qui est arrivé à l'autre.
   res.status(201).json({ ok: true, thanks: "Merci. L'équipe va regarder ce message." });
   void result;
-});
+}));
 
 // --- Modération (réservé rôle MODERATRICE/ADMIN) ---
 
 // GET /api/forum/moderation/queue — publications en attente de validation
-router.get("/moderation/queue", requireAuth, requireModerator, async (_req, res) => {
+router.get("/moderation/queue", requireAuth, requireModerator, ar(async (_req, res) => {
   const pending = await prisma.forumPost.findMany({
     where: { isHidden: false, reports: { some: { status: "OUVERT" } } },
     include: { author: { select: { pseudonyme: true, ageBracket: true } } },
     orderBy: { createdAt: "asc" },
   });
   res.json(pending);
-});
+}));
 
 // GET /api/forum/moderation/reports — signalements ouverts
-router.get("/moderation/reports", requireAuth, requireModerator, async (_req, res) => {
+router.get("/moderation/reports", requireAuth, requireModerator, ar(async (_req, res) => {
   const reports = await prisma.report.findMany({
     where: { status: "OUVERT" },
     include: { post: true, comment: true, reporter: { select: { pseudonyme: true } } },
     orderBy: { createdAt: "asc" },
   });
   res.json(reports);
-});
+}));
 
 // PATCH /api/forum/moderation/posts/:id — approuver ou masquer une publication
 const moderatePostSchema = z.object({
   isModerated: z.boolean().optional(),
   isHidden: z.boolean().optional(),
 });
-router.patch("/moderation/posts/:id", requireAuth, requireModerator, async (req, res) => {
+router.patch("/moderation/posts/:id", requireAuth, requireModerator, ar(async (req, res) => {
   const parsed = moderatePostSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
   const updated = await prisma.forumPost.update({ where: { id: req.params.id }, data: parsed.data });
   res.json(updated);
-});
+}));
 
 // PATCH /api/forum/moderation/reports/:id — traiter un signalement
 const resolveReportSchema = z.object({ status: z.enum(["EN_COURS", "TRAITE", "REJETE"]) });
 // PATCH /api/forum/moderation/comments/:id — masquer un message (sa photo ou vidéo est supprimée du serveur)
-router.patch("/moderation/comments/:id", requireAuth, requireModerator, async (req, res) => {
+router.patch("/moderation/comments/:id", requireAuth, requireModerator, ar(async (req, res) => {
   const comment = await prisma.forumComment.findUnique({ where: { id: req.params.id } });
   if (!comment) return res.status(404).json({ error: "Message introuvable." });
   if (z.object({ isHidden: z.literal(true) }).safeParse(req.body).success) {
@@ -305,9 +305,9 @@ router.patch("/moderation/comments/:id", requireAuth, requireModerator, async (r
     return res.json(updated);
   }
   return res.status(400).json({ error: "Seul le masquage est possible." });
-});
+}));
 
-router.patch("/moderation/reports/:id", requireAuth, requireModerator, async (req, res) => {
+router.patch("/moderation/reports/:id", requireAuth, requireModerator, ar(async (req, res) => {
   const parsed = resolveReportSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
   const updated = await prisma.report.update({
@@ -315,6 +315,6 @@ router.patch("/moderation/reports/:id", requireAuth, requireModerator, async (re
     data: { status: parsed.data.status, resolvedAt: new Date() },
   });
   res.json(updated);
-});
+}));
 
 export default router;
