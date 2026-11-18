@@ -32,7 +32,7 @@ app.use(
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:"],
+        imgSrc: ["'self'", "data:", "blob:"], // blob: = aperçu d'une image choisie dans l'admin
         connectSrc: ["'self'"],
       },
     },
