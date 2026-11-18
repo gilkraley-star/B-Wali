@@ -120,6 +120,37 @@ const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJA
   r = await call("GET", "/catalog/professionals");
   check("annuaire : pro certifiée avec photo", r.data.some((p) => p.fullName === "Mireille Test" && p.certified && p.photoUrl.startsWith("/uploads/")));
 
+  // 6bis. Messagerie privée fille ↔ professionnelle
+  r = await call("GET", "/catalog/professionals", { token: fille });
+  const mireilleId = r.data.find((p) => p.fullName === "Mireille Test").id;
+  r = await call("POST", "/messages/start", { token: fille, body: { proId: mireilleId, anonymous: true } });
+  check("la fille démarre une conversation privée", r.status === 200 && !!r.data.id);
+  const convId = r.data.id;
+  r = await call("POST", "/messages/start", { token: fille, body: { proId: mireilleId } });
+  check("redémarrer renvoie la même conversation", r.status === 200 && r.data.id === convId);
+  r = await call("GET", "/messages/pro/conversations", { token: pro });
+  check("la pro voit la conversation avec une fille anonyme", r.status === 200 && r.data.some((c) => c.id === convId && c.with.displayName === "Utilisatrice anonyme"));
+  r = await call("POST", `/messages/conversations/${convId}`, { token: fille, body: { body: "Bonjour, j'ai une question sur mes règles." } });
+  check("envoi du premier message par la fille", r.status === 201 && r.data.mine === true);
+  r = await call("GET", `/messages/conversations/${convId}`, { token: pro });
+  check("la pro lit le message de la fille", r.status === 200 && r.data.messages.length === 1 && r.data.messages[0].mine === false);
+  r = await call("POST", `/messages/conversations/${convId}`, { token: pro, body: { body: "Bonjour, je t'écoute." } });
+  check("la pro répond", r.status === 201);
+  r = await call("GET", `/messages/conversations/${convId}`, { token: fille });
+  check("la fille voit la réponse de la pro", r.status === 200 && r.data.messages.length === 2 && r.data.messages[1].mine === false);
+  r = await call("GET", "/messages/conversations", { token: fille });
+  check("la fille retrouve la conversation dans sa liste, avec le vrai nom de la pro", r.status === 200 && r.data.some((c) => c.id === convId && c.with.fullName === "Mireille Test"));
+  r = await call("POST", `/messages/conversations/${convId}/report`, { token: fille, body: { reason: "Message inapproprié" } });
+  check("signalement d'une conversation", r.status === 201);
+  r = await call("POST", `/messages/conversations/${convId}/block`, { token: fille, body: {} });
+  check("blocage d'une conversation", r.status === 200);
+  r = await call("POST", `/messages/conversations/${convId}`, { token: pro, body: { body: "Tu es là ?" } });
+  check("impossible d'écrire dans une conversation bloquée", r.status === 403);
+  r = await call("POST", "/auth/signup", { body: { email: "autrefille@test.org", password: "motdepasse1", pseudonyme: "autre_fille", birthDate: "2002-01-01", acceptTerms: true, photo: PNG } });
+  const autreFille = r.data.token;
+  r = await call("GET", `/messages/conversations/${convId}`, { token: autreFille });
+  check("une autre utilisatrice ne peut pas lire une conversation qui n'est pas la sienne", r.status === 404);
+
   // 7. Désactivation immédiate d'un compte
   r = await call("GET", "/admin/users", { token: admin });
   const proId = r.data.find((u) => u.email === "sf@test.org").id;

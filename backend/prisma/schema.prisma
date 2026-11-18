@@ -59,7 +59,59 @@ model User {
   coursesAuthored  Course[]  @relation("CourseAuthor")
   incomeAuthored   IncomeActivity[] @relation("IncomeAuthor")
 
+  convosAsUser  Conversation[] @relation("ConvoUser")
+  convosAsPro   Conversation[] @relation("ConvoPro")
+  dmSent        DirectMessage[]
+
   @@index([ageBracket])
+}
+
+// --- MESSAGERIE PRIVÉE (fille ↔ professionnelle vérifiée) ---
+// Une conversation par paire (fille, professionnelle). L'admin ne peut jamais lire les messages.
+model Conversation {
+  id            String   @id @default(uuid())
+  userId        String   // la fille qui écrit
+  proId         String   // la professionnelle vérifiée
+  anonymous     Boolean  @default(false) // la fille a choisi de ne pas montrer son pseudonyme à la pro
+  blocked       Boolean  @default(false)
+  blockedBy     String?  // "USER" | "PRO"
+  lastMessageAt DateTime @default(now())
+  userReadAt    DateTime?
+  proReadAt     DateTime?
+  createdAt     DateTime @default(now())
+
+  user     User @relation("ConvoUser", fields: [userId], references: [id])
+  pro      User @relation("ConvoPro", fields: [proId], references: [id])
+  messages DirectMessage[]
+  reports  DmReport[]
+
+  @@unique([userId, proId])
+  @@index([proId])
+}
+
+model DirectMessage {
+  id             String   @id @default(uuid())
+  conversationId String
+  senderId       String
+  body           String
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  sender       User @relation(fields: [senderId], references: [id])
+
+  @@index([conversationId])
+}
+
+model DmReport {
+  id             String   @id @default(uuid())
+  conversationId String
+  reporterId     String
+  reason         String
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  @@index([conversationId])
 }
 
 // --- MON CYCLE (section 5.1) ---

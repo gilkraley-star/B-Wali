@@ -11,24 +11,27 @@ import { useAuth } from "../context/AuthContext";
 import HomeCarousel from "../components/HomeCarousel";
 import PendingNotice from "../components/PendingNotice";
 import { FadeUp, Float, Pulse, Wiggle } from "../components/anim";
+import { useI18n } from "../i18n";
 
 interface Estimate { nextEstimatedStart: string | null; disclaimer: string }
 
 // Accueil : reproduit la maquette (en-tête, bandeau, conseillère, grille de 9 envies, invitation).
-const TILES: { label: string; e: string; bg: string; go: string }[] = [
-  { label: "Mon cycle", e: "🩸", bg: "#FFE0E6", go: "Cycle" },
-  { label: "Je m'informe", e: "📚", bg: "#E3F0FF", go: "Library" },
-  { label: "Entre Nous", e: "💬", bg: "#E8F7E4", go: "Forum" },
-  { label: "Mon Carnet", e: "📒", bg: "#FFF1CC", go: "MonCarnet" },
-  { label: "Jeunes mamans", e: "🤱", bg: "#F3E4FF", go: "JeunesMamans" },
-  { label: "Formations", e: "🎓", bg: "#FFE6D2", go: "Formations" },
-  { label: "Gagner de l'argent", e: "💼", bg: "#DDF5F0", go: "Revenus" },
-  { label: "Centres de santé", e: "🏥", bg: "#FFE0E6", go: "Centres" },
-  { label: "Jeux et divertissement", e: "🎮", bg: "#EBDDFF", go: "Games" },
+const TILE_DEFS: { key: string; e: string; bg: string; go: string }[] = [
+  { key: "home_tile_cycle", e: "🩸", bg: "#FFE0E6", go: "Cycle" },
+  { key: "home_tile_library", e: "📚", bg: "#E3F0FF", go: "Library" },
+  { key: "home_tile_forum", e: "💬", bg: "#E8F7E4", go: "Forum" },
+  { key: "home_tile_carnet", e: "📒", bg: "#FFF1CC", go: "MonCarnet" },
+  { key: "home_tile_moms", e: "🤱", bg: "#F3E4FF", go: "JeunesMamans" },
+  { key: "home_tile_formations", e: "🎓", bg: "#FFE6D2", go: "Formations" },
+  { key: "home_tile_income", e: "💼", bg: "#DDF5F0", go: "Revenus" },
+  { key: "home_tile_centers", e: "🏥", bg: "#FFE0E6", go: "Centres" },
+  { key: "home_tile_games", e: "🎮", bg: "#EBDDFF", go: "Games" },
 ];
 
 export default function HomeScreen({ navigation }: any) {
   const { user } = useAuth();
+  const { t } = useI18n();
+  const TILES = TILE_DEFS.map((d) => ({ ...d, label: t(d.key as any) }));
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   useFocusEffect(useCallback(() => {
     (async () => {
@@ -44,7 +47,7 @@ export default function HomeScreen({ navigation }: any) {
   const sosN = React.useRef(0); const sosT = React.useRef<any>(null);
   const sosPress = () => {
     sosN.current += 1; clearTimeout(sosT.current);
-    if (sosN.current >= 3) { sosN.current = 0; sendSos(() => Alert.alert("SOS", "Choisis d'abord une personne de confiance dans Réglages, pour qu'elle reçoive ton alerte.", [{ text: "Plus tard" }, { text: "Choisir", onPress: () => navigation.navigate("Settings") }])); return; }
+    if (sosN.current >= 3) { sosN.current = 0; sendSos(() => Alert.alert("SOS", t("home_sos_help"), [{ text: t("home_sos_later") }, { text: t("home_sos_choose"), onPress: () => navigation.navigate("Settings") }])); return; }
     sosT.current = setTimeout(() => { const c = sosN.current; sosN.current = 0; if (c === 1) navigation.navigate("Urgence"); }, 520);
   };
   const [gridH, setGridH] = useState(0);
@@ -63,12 +66,12 @@ export default function HomeScreen({ navigation }: any) {
         <FadeUp delay={30} style={s.head}>
           <View style={s.logo}><Image source={require("../../assets/logo-emblem.png")} style={{ width: 34, height: 34 }} resizeMode="contain" /></View>
           <View style={{ flex: 1 }}>
-            <Text style={s.hello}>Salut ma belle 👋</Text>
+            <Text style={s.hello}>{t("home_hello")}</Text>
             <Text style={s.name} numberOfLines={1}>{user?.pseudonyme} 💕</Text>
           </View>
           {isPro && <TouchableOpacity style={s.proMini} onPress={() => navigation.navigate("ProSpace")} accessibilityRole="button"><Text style={s.proMiniT}>{user?.role === "PARTENAIRE" ? "🤝" : "🩺"}</Text></TouchableOpacity>}
           {user?.role === "ADMIN" && <TouchableOpacity style={s.proMini} onPress={() => navigation.navigate("Admin")} accessibilityRole="button"><Text style={s.proMiniT}>🛠️</Text></TouchableOpacity>}
-          <Pulse><TouchableOpacity style={s.sos} onPress={sosPress} accessibilityRole="button" accessibilityLabel="SOS urgence. Trois appuis rapides : alerter ma personne de confiance"><Text style={s.sosT}>SOS</Text></TouchableOpacity></Pulse>
+          <Pulse><TouchableOpacity style={s.sos} onPress={sosPress} accessibilityRole="button" accessibilityLabel={t("home_sos_a11y")}><Text style={s.sosT}>SOS</Text></TouchableOpacity></Pulse>
         </FadeUp>
 
         <FadeUp delay={100} style={{ marginTop: 14 }}><HomeCarousel nextPeriod={estimate?.nextEstimatedStart} navigation={navigation} /></FadeUp>
@@ -77,14 +80,14 @@ export default function HomeScreen({ navigation }: any) {
           <TouchableOpacity style={s.advisor} onPress={() => navigation.navigate("Assistant")} accessibilityRole="button" activeOpacity={0.9}>
             <Wiggle style={s.spark}><Text style={{ fontSize: 25 }}>✨</Text></Wiggle>
             <View style={{ flex: 1 }}>
-              <Text style={s.advT}>Pose-moi tes questions</Text>
-              <Text style={s.advS}>Ta conseillère IA, en toute discrétion</Text>
+              <Text style={s.advT}>{t("home_ask_me")}</Text>
+              <Text style={s.advS}>{t("home_ask_me_sub")}</Text>
             </View>
             <View style={s.chev}><Text style={{ color: "#fff", fontSize: 15 }}>›</Text></View>
           </TouchableOpacity>
         </FadeUp>
 
-        <FadeUp delay={240}><Text style={s.q}>C'est quoi ton envie aujourd'hui ?</Text></FadeUp>
+        <FadeUp delay={240}><Text style={s.q}>{t("home_what_today")}</Text></FadeUp>
         <View style={{ flex: 1, minHeight: 0 }} onLayout={(e) => setGridH(e.nativeEvent.layout.height)}>
           {[0, 1, 2].map((r) => (
             <View key={r} style={[{ flexDirection: "row" }, gridH > 0 ? { height: Math.max(74, gridH / 3) } : { flex: 1 }]}>

@@ -4,10 +4,12 @@ import { ResizeMode, Video } from "expo-av";
 import { useFocusEffect } from "@react-navigation/native";
 import { ApiError, apiOrigin, apiRequest } from "../api/client";
 import { colors, spacing } from "../theme/colors";
+import { useI18n } from "../i18n";
 
 // Les vidéos d'une formation : on les regarde dans l'ordre ; chacune terminée est cochée.
 interface V { id: string; title: string; url: string; done: boolean }
 export default function CourseVideosScreen({ route }: any) {
+  const { t } = useI18n();
   const { slug, title } = route.params;
   const [vids, setVids] = useState<V[]>([]);
   const [open, setOpen] = useState<string | null>(null);
@@ -15,7 +17,7 @@ export default function CourseVideosScreen({ route }: any) {
 
   const load = useCallback(async () => {
     try { const r = await apiRequest<{ videos: V[] }>(`/catalog/courses/${slug}/videos`); setVids(r.videos); setError(null); if (!open && r.videos.length) setOpen((r.videos.find((v) => !v.done) || r.videos[0]).id); }
-    catch (e) { setError(e instanceof ApiError ? e.message : "Impossible de charger les vidéos."); }
+    catch (e) { setError(e instanceof ApiError ? e.message : t("videos_load_error")); }
   }, [slug]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -24,7 +26,7 @@ export default function CourseVideosScreen({ route }: any) {
     try {
       const r = await apiRequest<{ done: number; total: number; allDone: boolean }>(`/catalog/courses/${slug}/videos/${id}/done`, { method: "POST" });
       setVids((l) => l.map((v) => (v.id === id ? { ...v, done: true } : v)));
-      if (r.allDone) Alert.alert("Bravo ! 🎉", "Tu as vu toutes les vidéos. Reviens à la liste des formations : la suite (test ou attestation) t'attend.");
+      if (r.allDone) Alert.alert(t("videos_bravo_title"), t("videos_bravo"));
     } catch { /* hors ligne : on réessaiera à la prochaine vidéo */ }
   };
   const doneCount = vids.filter((v) => v.done).length;
@@ -32,7 +34,7 @@ export default function CourseVideosScreen({ route }: any) {
   return (
     <ScrollView style={s.c} contentContainerStyle={{ padding: spacing.lg, paddingBottom: 60 }}>
       <Text style={s.h1}>{title}</Text>
-      {error ? <Text style={s.err}>{error}</Text> : <Text style={s.meta}>{doneCount} vidéo{doneCount > 1 ? "s" : ""} terminée{doneCount > 1 ? "s" : ""} sur {vids.length}</Text>}
+      {error ? <Text style={s.err}>{error}</Text> : <Text style={s.meta}>{doneCount} {doneCount > 1 ? t("videos_done_plural") : t("videos_done_singular")} {vids.length}</Text>}
       {vids.length > 0 ? <View style={s.bar}><View style={[s.fill, { width: `${(doneCount / vids.length) * 100}%` }]} /></View> : null}
       {vids.map((v, i) => (
         <View key={v.id} style={s.card}>
@@ -46,7 +48,7 @@ export default function CourseVideosScreen({ route }: any) {
               onPlaybackStatusUpdate={(st: any) => { if (st?.didJustFinish) markDone(v.id); }} />
           ) : null}
         </View>))}
-      {!error && vids.length === 0 ? <Text style={s.meta}>Les vidéos arrivent bientôt.</Text> : null}
+      {!error && vids.length === 0 ? <Text style={s.meta}>{t("videos_coming_soon")}</Text> : null}
     </ScrollView>
   );
 }

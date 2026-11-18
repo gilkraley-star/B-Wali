@@ -36,6 +36,9 @@ import LiveScreen from "../screens/LiveLazy";
 import FormationsScreen from "../screens/FormationsScreen";
 import RevenusScreen from "../screens/RevenusScreen";
 import ProfessionnellesScreen from "../screens/ProfessionnellesScreen";
+import ProInboxScreen from "../screens/ProInboxScreen";
+import MesConversationsScreen from "../screens/MesConversationsScreen";
+import ConversationScreen from "../screens/ConversationScreen";
 import UrgenceScreen from "../screens/UrgenceScreen";
 import ProSpaceScreen from "../screens/ProSpaceScreen";
 import AdminScreen from "../screens/AdminScreen";
@@ -153,6 +156,9 @@ export default function AppNavigator() {
             <RootStack.Screen name="Professionnelles" component={ProfessionnellesScreen} options={{ headerShown: true, title: "Professionnelles" }} />
             <RootStack.Screen name="Urgence" component={UrgenceScreen} options={{ headerShown: true, title: "Urgence" }} />
             <RootStack.Screen name="ProSpace" component={ProSpaceScreen} options={{ headerShown: true, title: "Espace pro" }} />
+            <RootStack.Screen name="ProInbox" component={ProInboxScreen} options={{ headerShown: true, title: "Mes messages" }} />
+            <RootStack.Screen name="MesConversations" component={MesConversationsScreen} options={{ headerShown: true, title: "Mes conversations" }} />
+            <RootStack.Screen name="Conversation" component={ConversationScreen} options={{ headerShown: true, title: "Conversation" }} />
             <RootStack.Screen name="Games" component={GamesHomeScreen} options={{ headerShown: true, title: "Jeux" }} />
             <RootStack.Screen name="Quiz" component={QuizScreen} options={{ headerShown: true, title: "Quiz" }} />
             <RootStack.Screen name="MotsMeles" component={MotsMelesScreen} options={{ headerShown: true, title: "Mots mêlés" }} />

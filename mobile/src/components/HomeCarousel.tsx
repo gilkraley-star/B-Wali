@@ -5,6 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { apiRequest } from "../api/client";
 import { apiOrigin } from "../api/client";
 import { frToKey, loadCarnets, todayFr, typeOf } from "../storage/carnets";
+import { useI18n } from "../i18n";
 
 // Bandeau qui défile sur l'accueil : « Tes prochaines règles » reste toujours prioritaire (première carte,
 // affichée plus longtemps, et le défilement y revient toujours), puis rappels du carnet, formations et annonces.
@@ -15,12 +16,13 @@ const PALETTE: Record<string, [string, string]> = {
 const W = Dimensions.get("window").width - 40;
 const GAP = 12;
 
-const MONTHS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
-const longDate = (iso: string) => { const d = new Date(iso); return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`; };
+const MONTH_KEYS = ["month_1", "month_2", "month_3", "month_4", "month_5", "month_6", "month_7", "month_8", "month_9", "month_10", "month_11", "month_12"] as const;
 const daysUntil = (fr: string) => { const k = frToKey(fr); if (k === "0") return null; const d = new Date(+k.slice(0, 4), +k.slice(4, 6) - 1, +k.slice(6, 8)); const t = new Date(); t.setHours(0, 0, 0, 0); return Math.round((d.getTime() - t.getTime()) / 86400000); };
-const when = (n: number) => (n === 0 ? "aujourd'hui" : n === 1 ? "demain" : `dans ${n} jours`);
 
 export default function HomeCarousel({ nextPeriod, navigation }: { nextPeriod: string | null | undefined; navigation: any }) {
+  const { t } = useI18n();
+  const longDate = (iso: string) => { const d = new Date(iso); return `${d.getDate()} ${t(MONTH_KEYS[d.getMonth()])} ${d.getFullYear()}`; };
+  const when = (n: number) => (n === 0 ? t("date_today") : n === 1 ? t("date_tomorrow") : t("date_in_days").replace("{n}", String(n)));
   const [extra, setExtra] = useState<Slide[]>([]);
   const x = useRef(new Animated.Value(0)).current;
   const scroller = useRef<any>(null);
@@ -29,10 +31,10 @@ export default function HomeCarousel({ nextPeriod, navigation }: { nextPeriod: s
   const [page, setPage] = useState(0);
 
   const period: Slide = {
-    key: "period", emoji: "🌸", priority: true, colors: PALETTE.rose, target: "Cycle", button: "Voir mon cycle →",
-    title: "Tes prochaines règles",
-    big: nextPeriod ? longDate(nextPeriod) : "Pas encore de date",
-    sub: nextPeriod ? undefined : "Note tes règles pour voir ta date.",
+    key: "period", emoji: "🌸", priority: true, colors: PALETTE.rose, target: "Cycle", button: t("carousel_see_cycle"),
+    title: t("carousel_next_period"),
+    big: nextPeriod ? longDate(nextPeriod) : t("carousel_no_date"),
+    sub: nextPeriod ? undefined : t("carousel_log_hint"),
   };
   const slides = [period, ...extra];
 
@@ -42,12 +44,12 @@ export default function HomeCarousel({ nextPeriod, navigation }: { nextPeriod: s
       const carnets = await loadCarnets();
       const today = todayFr();
       for (const c of carnets) {
-        const t = typeOf(c.type);
+        const tp = typeOf(c.type);
         for (const e of c.entries) {
           const cand: { d: string; label: string }[] = [];
           if (e.values.next) cand.push({ d: e.values.next, label: c.type === "vaccin" ? `Rendez-vous vaccin${e.values.bebe ? " de " + e.values.bebe : ""}` : "Prochaine visite prénatale" });
           if (c.type === "sante" && e.values.quoi === "Rendez-vous") cand.push({ d: e.date, label: `Rendez-vous${e.values.valeur ? " : " + e.values.valeur : ""}` });
-          for (const k of cand) { const n = daysUntil(k.d); if (n !== null && n >= 0 && n <= 14) out.push({ key: `c${e.id}${k.label}`, emoji: t.emoji, title: "Rappel de ton carnet", big: k.label, sub: `${when(n)} (${k.d})`, button: "Ouvrir Mon Carnet →", target: "MonCarnet", colors: PALETTE.vert }); }
+          for (const k of cand) { const n = daysUntil(k.d); if (n !== null && n >= 0 && n <= 14) out.push({ key: `c${e.id}${k.label}`, emoji: tp.emoji, title: t("carousel_carnet_reminder"), big: k.label, sub: `${when(n)} (${k.d})`, button: t("carousel_open_carnet"), target: "MonCarnet", colors: PALETTE.vert }); }
         }
       }
       void today;
@@ -55,18 +57,18 @@ export default function HomeCarousel({ nextPeriod, navigation }: { nextPeriod: s
     try { // formations
       const courses = await apiRequest<any[]>("/catalog/courses", { silent: true });
       const live = courses.find((c) => c.liveState === "EN_COURS");
-      if (live) out.push({ key: "live", emoji: "🔴", title: "En direct maintenant", big: live.title, sub: "Rejoins le direct !", button: "Rejoindre →", target: "Formations", colors: ["#E5252A", "#FF6B6B"] });
+      if (live) out.push({ key: "live", emoji: "🔴", title: t("carousel_live_now"), big: live.title, sub: t("carousel_join_live_hint"), button: t("carousel_join"), target: "Formations", colors: ["#E5252A", "#FF6B6B"] });
       else {
         const next = courses.filter((c) => c.startsAt && new Date(c.startsAt) > new Date() && c.state !== "REPORTEE").sort((a, b) => +new Date(a.startsAt) - +new Date(b.startsAt))[0];
-        if (next) out.push({ key: "course", emoji: next.icon || "🎓", title: "Prochaine formation", big: next.title, sub: longDate(next.startsAt), button: "Voir la formation →", target: "Formations", colors: PALETTE.violet });
+        if (next) out.push({ key: "course", emoji: next.icon || "🎓", title: t("carousel_next_course"), big: next.title, sub: longDate(next.startsAt), button: t("carousel_see_course"), target: "Formations", colors: PALETTE.violet });
       }
     } catch { /* ignore */ }
     try { // annonces
       const anns = await apiRequest<any[]>("/catalog/announcements", { silent: true });
-      anns.forEach((a) => out.push({ key: "a" + a.id, emoji: a.emoji, title: a.title, big: undefined, sub: a.body, button: a.buttonLabel || (a.target || a.linkUrl ? "Découvrir →" : undefined), target: a.target || undefined, link: a.linkUrl || undefined, image: a.imageUrl ? apiOrigin + a.imageUrl : undefined, colors: PALETTE[a.color] || PALETTE.violet }));
+      anns.forEach((a) => out.push({ key: "a" + a.id, emoji: a.emoji, title: a.title, big: undefined, sub: a.body, button: a.buttonLabel || (a.target || a.linkUrl ? t("carousel_discover") : undefined), target: a.target || undefined, link: a.linkUrl || undefined, image: a.imageUrl ? apiOrigin + a.imageUrl : undefined, colors: PALETTE[a.color] || PALETTE.violet }));
     } catch { /* ignore */ }
     setExtra(out);
-  }, []);
+  }, [t]);
 
   useFocusEffect(useCallback(() => { build(); idx.current = 0; scroller.current?.scrollTo({ x: 0, animated: false }); }, [build]));
 

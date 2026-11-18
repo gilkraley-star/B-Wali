@@ -3,7 +3,7 @@ import { AppState } from "react-native";
 import { apiOrigin, getToken } from "../api/client";
 
 // Connexion temps réel au serveur : un signal arrive dès qu'un message est publié.
-export type RtEvent = { t: "post"; cat: string } | { t: "comment"; post: string };
+export type RtEvent = { t: "post"; cat: string } | { t: "comment"; post: string } | { t: "dm"; conv: string };
 type Handler = (e: RtEvent) => void;
 
 const handlers = new Set<Handler>();

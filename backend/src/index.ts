@@ -17,6 +17,7 @@ import http from "http";
 import { attachRealtime } from "./utils/realtime";
 import assistantRoutes from "./routes/assistant";
 import liveRoutes from "./routes/live";
+import messagesRoutes from "./routes/messages";
 import gamesRoutes from "./routes/games";
 import path from "path";
 import { UPLOAD_DIR } from "./utils/uploads";
@@ -66,6 +67,7 @@ app.use("/api/stories", storiesRoutes);
 app.use("/api/games", gamesRoutes);
 app.use("/api/live", liveRoutes);
 app.use("/api/assistant", assistantRoutes);
+app.use("/api/messages", messagesRoutes);
 
 // Photos des comptes professionnels et interface d'administration web (/admin)
 app.use("/uploads", express.static(UPLOAD_DIR, { maxAge: "7d" }));

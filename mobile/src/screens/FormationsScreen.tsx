@@ -8,6 +8,7 @@ import { apiRequest, ApiError } from "../api/client";
 import { colors, spacing } from "../theme/colors";
 import { Card, PrimaryButton, ScreenTitle } from "../theme/ui";
 import { Source, SourcesBlock } from "../components/Sources";
+import { useI18n } from "../i18n";
 
 interface Course {
   liveState?: string;
@@ -32,12 +33,11 @@ interface Enrollment {
   certificateNo: string | null;
 }
 
-function fmt(d?: string | null) {
-  return d ? new Date(d).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "Date à venir";
-}
-
 export default function FormationsScreen({ navigation }: any) {
   const { user } = useAuth();
+  const { t, lang } = useI18n();
+  const fmt = (d?: string | null) =>
+    d ? new Date(d).toLocaleString(lang === "en" ? "en-US" : "fr-FR", { dateStyle: "long", timeStyle: "short" }) : t("formations_date_tbd");
   const isTeacher = ["FORMATRICE", "PROFESSIONNELLE", "COACH", "ADMIN"].includes(user?.role || "");
   const [courses, setCourses] = useState<Course[]>([]);
   const [mine, setMine] = useState<Record<string, Enrollment>>({});
@@ -50,32 +50,32 @@ export default function FormationsScreen({ navigation }: any) {
       setMine(Object.fromEntries(e.map((x) => [x.courseSlug, x])));
       setError(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erreur de chargement.");
+      setError(err instanceof ApiError ? err.message : t("formations_load_error"));
     }
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const getCert = async (slug: string) => {
     try { await apiRequest(`/catalog/courses/${slug}/complete`, { method: "POST" }); await load(); await downloadCert(slug); }
-    catch (err) { Alert.alert("Oups", err instanceof ApiError ? err.message : "Réessaie plus tard."); }
+    catch (err) { Alert.alert(t("formations_oops"), err instanceof ApiError ? err.message : t("formations_retry_later")); }
   };
   const downloadCert = async (slug: string) => {
     try {
       const r = await apiRequest<{ pdf: string; fileName: string }>(`/catalog/courses/${slug}/certificate`);
       const uri = (FileSystem.cacheDirectory || "") + r.fileName;
       await FileSystem.writeAsStringAsync(uri, r.pdf, { encoding: FileSystem.EncodingType.Base64 });
-      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "Mon attestation" });
-      else Alert.alert("Attestation prête", uri);
-    } catch (err) { Alert.alert("Attestation", err instanceof ApiError ? err.message : "Réessaie plus tard."); }
+      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: t("formations_cert_share_title") });
+      else Alert.alert(t("formations_cert_ready_title"), uri);
+    } catch (err) { Alert.alert(t("formations_cert"), err instanceof ApiError ? err.message : t("formations_retry_later")); }
   };
 
   const enroll = async (slug: string) => {
     try {
       await apiRequest(`/catalog/courses/${slug}/enroll`, { method: "POST" });
-      Alert.alert("Inscription enregistrée", "Tu recevras un rappel avant le direct.");
+      Alert.alert(t("formations_enroll_ok_title"), t("formations_enroll_ok"));
       load();
     } catch (err) {
-      Alert.alert("Erreur", err instanceof ApiError ? err.message : "Réessaie plus tard.");
+      Alert.alert(t("formations_error"), err instanceof ApiError ? err.message : t("formations_retry_later"));
     }
   };
 
@@ -87,14 +87,12 @@ export default function FormationsScreen({ navigation }: any) {
       keyExtractor={(c) => c.id}
       ListHeaderComponent={
         <View>
-          <ScreenTitle>Formations</ScreenTitle>
-          <Text style={styles.intro}>
-            Tout se suit ici, dans l'application : tu t'inscris, tu suis le direct jusqu'au bout, puis tu passes le test pour obtenir ton attestation.
-          </Text>
+          <ScreenTitle>{t("formations_title")}</ScreenTitle>
+          <Text style={styles.intro}>{t("formations_intro")}</Text>
           {error && <Text style={styles.error}>{error}</Text>}
         </View>
       }
-      ListEmptyComponent={!error ? <Text style={styles.intro}>Les premières formations arrivent bientôt.</Text> : null}
+      ListEmptyComponent={!error ? <Text style={styles.intro}>{t("formations_empty")}</Text> : null}
       renderItem={({ item: c }) => {
         const e = mine[c.slug];
         const postponed = c.state === "REPORTEE";
@@ -103,33 +101,31 @@ export default function FormationsScreen({ navigation }: any) {
             <Text style={styles.title}>
               {c.icon} {c.title}
             </Text>
-            {c.partner ? <Text style={styles.meta}>En partenariat avec {c.partner}</Text> : null}
+            {c.partner ? <Text style={styles.meta}>{t("formations_with_partner")} {c.partner}</Text> : null}
             <Text style={styles.body}>{c.summary}</Text>
-            <Text style={styles.meta}>⏱ {c.durationMin >= 60 ? (c.durationMin / 60).toString().replace(".", ",") + " h" : c.durationMin + " min"} · {c.certified === false ? "📘 Sans attestation" : c.hasTest === false ? "🎓 Attestation à la fin" : "🎓 Attestation après le test"}</Text>
+            <Text style={styles.meta}>⏱ {c.durationMin >= 60 ? (c.durationMin / 60).toString().replace(".", ",") + " h" : c.durationMin + " min"} · {c.certified === false ? t("formations_no_cert") : c.hasTest === false ? t("formations_cert_end") : t("formations_cert_after_test")}</Text>
             {postponed ? (
-              <Text style={styles.postponed}>
-                📅 Session reportée : la formatrice n'était pas disponible. Nouvelle date : {fmt(c.postponedTo)}. Ton inscription reste valable.
-              </Text>
+              <Text style={styles.postponed}>{t("formations_postponed").replace("{date}", fmt(c.postponedTo))}</Text>
             ) : (
               <Text style={styles.meta}>📅 {fmt(c.startsAt)}</Text>
             )}
-            {e && c.videos && c.videos.length > 0 ? <PrimaryButton title={`▶️ Voir les vidéos (${c.videos.length})`} onPress={() => navigation.navigate("CourseVideos", { slug: c.slug, title: c.title })} /> : null}
+            {e && c.videos && c.videos.length > 0 ? <PrimaryButton title={t("formations_watch_videos").replace("{n}", String(c.videos.length))} onPress={() => navigation.navigate("CourseVideos", { slug: c.slug, title: c.title })} /> : null}
             {c.liveState === "EN_COURS" && c.format !== "VIDEOS" ? (
-              <PrimaryButton title="🔴 Rejoindre le direct" onPress={() => navigation.navigate("Live", { slug: c.slug, host: false })} />
+              <PrimaryButton title={t("formations_join_live")} onPress={() => navigation.navigate("Live", { slug: c.slug, host: false })} />
             ) : null}
             {isTeacher ? (
-              <PrimaryButton title="🎥 Commencer le direct" onPress={() => navigation.navigate("Live", { slug: c.slug, host: true })} />
+              <PrimaryButton title={t("formations_start_live")} onPress={() => navigation.navigate("Live", { slug: c.slug, host: true })} />
             ) : null}
-            {e && e.attendedToEnd && !e.certificateNo && c.certified !== false && c.hasTest === false ? <PrimaryButton title="🎓 Obtenir mon attestation" onPress={() => getCert(c.slug)} /> : null}
-            {e && e.attendedToEnd && !e.certificateNo && c.certified !== false && c.hasTest !== false ? <PrimaryButton title="📝 Passer le test" onPress={() => navigation.navigate("Test", { slug: c.slug, title: c.title })} /> : null}
-            {e && e.certificateNo ? <PrimaryButton title="📄 Télécharger mon attestation" onPress={() => downloadCert(c.slug)} /> : null}
+            {e && e.attendedToEnd && !e.certificateNo && c.certified !== false && c.hasTest === false ? <PrimaryButton title={t("formations_get_cert")} onPress={() => getCert(c.slug)} /> : null}
+            {e && e.attendedToEnd && !e.certificateNo && c.certified !== false && c.hasTest !== false ? <PrimaryButton title={t("formations_take_test")} onPress={() => navigation.navigate("Test", { slug: c.slug, title: c.title })} /> : null}
+            {e && e.certificateNo ? <PrimaryButton title={t("formations_download_cert")} onPress={() => downloadCert(c.slug)} /> : null}
             {e ? (
               <Text style={styles.ok}>
-                ✓ Inscrite
-                {e.certificateNo ? ` · Attestation ${e.certificateNo}` : c.certified === false ? "" : e.attendedToEnd ? (c.hasTest === false ? " · Formation terminée" : c.qcmReady === false ? " · Test bientôt disponible" : " · Test disponible") : c.hasTest === false ? " · Attestation à la fin" : c.format === "VIDEOS" ? " · Test après les vidéos" : " · Test après le direct"}
+                {t("formations_enrolled")}
+                {e.certificateNo ? t("formations_cert_no").replace("{no}", e.certificateNo) : c.certified === false ? "" : e.attendedToEnd ? (c.hasTest === false ? t("formations_course_done") : c.qcmReady === false ? t("formations_test_soon") : t("formations_test_ready")) : c.hasTest === false ? t("formations_cert_at_end") : c.format === "VIDEOS" ? t("formations_test_after_videos") : t("formations_test_after_live")}
               </Text>
             ) : (
-              <PrimaryButton title="Voir la formation et m'inscrire" onPress={() => navigation.navigate("Course", { course: c })} />
+              <PrimaryButton title={t("formations_see_and_enroll")} onPress={() => navigation.navigate("Course", { course: c })} />
             )}
             <SourcesBlock sources={c.sources} />
           </Card>

@@ -39,7 +39,7 @@ const CATEGORIES = [
  * Espace des professionnelles : proposer une fiche, suivre le statut de ses propositions.
  * Rien n'est visible des filles avant la validation d'un compte administrateur.
  */
-export default function ProSpaceScreen() {
+export default function ProSpaceScreen({ navigation }: any) {
   const { user } = useAuth();
   const partner = user?.role === "PARTENAIRE";
   const [cTitle, setCTitle] = useState(""); const [cSum, setCSum] = useState(""); const [cOutline, setCOutline] = useState(""); const [cHours, setCHours] = useState("2");
@@ -113,6 +113,11 @@ export default function ProSpaceScreen() {
   return (
     <ScrollView style={styles.c} contentContainerStyle={{ padding: spacing.lg }}>
       <ScreenTitle>{partner ? "Espace partenaire" : "Espace professionnelle"}</ScreenTitle>
+      {!partner && (
+        <Card style={{ marginBottom: spacing.md }}>
+          <PrimaryButton title="💌 Mes messages" onPress={() => navigation.navigate("ProInbox")} />
+        </Card>
+      )}
       {partner ? (<>
         <Text style={styles.p}>Propose une formation pour les filles. L'équipe Wali la relit, ajoute les vidéos et la programme. Les sources sont facultatives.</Text>
         <FieldLabel>Titre de la formation</FieldLabel>

@@ -3,10 +3,12 @@ import { Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, T
 import { ApiError, apiOrigin, apiRequest } from "../api/client";
 import { colors, spacing } from "../theme/colors";
 import { Card, PrimaryButton, ScreenTitle } from "../theme/ui";
+import { useI18n } from "../i18n";
 
 // Fiche d'une formation : description, profil de la formatrice, puis inscription avec les VRAIES informations
 // (elles serviront à écrire le nom de l'apprenante sur l'attestation).
 export default function CourseScreen({ route, navigation }: any) {
+  const { t, lang } = useI18n();
   const c = route.params.course;
   const [fullName, setFullName] = useState("");
   const [d, setD] = useState(""); const [m, setM] = useState(""); const [y, setY] = useState("");
@@ -17,15 +19,15 @@ export default function CourseScreen({ route, navigation }: any) {
 
   async function submit() {
     const dd = d.padStart(2, "0"), mm = m.padStart(2, "0");
-    if (fullName.trim().length < 5) return Alert.alert("Nom complet", "Écris ton nom et tes prénoms, comme sur ton acte de naissance.");
-    if (!/^\d{1,2}$/.test(d) || !/^\d{1,2}$/.test(m) || !/^\d{4}$/.test(y)) return Alert.alert("Date de naissance", "Écris le jour, le mois et l'année (ex. 14 / 03 / 2008).");
-    if (place.trim().length < 2) return Alert.alert("Lieu de naissance", "Écris ta ville ou ton village de naissance.");
+    if (fullName.trim().length < 5) return Alert.alert(t("course_fullname_title"), t("course_fullname_hint"));
+    if (!/^\d{1,2}$/.test(d) || !/^\d{1,2}$/.test(m) || !/^\d{4}$/.test(y)) return Alert.alert(t("course_birthdate_title"), t("course_birthdate_hint"));
+    if (place.trim().length < 2) return Alert.alert(t("course_birthplace_title"), t("course_birthplace_hint"));
     setBusy(true);
     try {
       await apiRequest(`/catalog/courses/${c.slug}/enroll`, { method: "POST", body: { fullName: fullName.trim(), birthDate: `${y}-${mm}-${dd}`, birthPlace: place.trim() } });
-      Alert.alert("Inscription enregistrée 🎉", "Tu recevras un rappel avant le direct. Ces informations seront écrites sur ton attestation.");
+      Alert.alert(t("course_enroll_ok_title"), t("course_enroll_ok"));
       navigation.goBack();
-    } catch (e) { Alert.alert("Oups", e instanceof ApiError ? e.message : "Réessaie plus tard."); }
+    } catch (e) { Alert.alert(t("course_oops"), e instanceof ApiError ? e.message : t("course_retry_later")); }
     setBusy(false);
   }
 
@@ -33,16 +35,16 @@ export default function CourseScreen({ route, navigation }: any) {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView style={s.c} contentContainerStyle={{ padding: spacing.lg }} keyboardShouldPersistTaps="handled">
         <ScreenTitle>{c.icon} {c.title}</ScreenTitle>
-        {c.partner ? <Text style={s.meta}>En partenariat avec {c.partner}</Text> : null}
+        {c.partner ? <Text style={s.meta}>{t("course_with_partner")} {c.partner}</Text> : null}
         <Text style={s.body}>{c.summary}</Text>
-        {c.outlineMd ? <Card><Text style={s.h}>Au programme</Text><Text style={s.body}>{String(c.outlineMd).replace(/[#*]/g, "").trim()}</Text></Card> : null}
-        <Text style={s.meta}>⏱ {c.durationMin >= 60 ? (c.durationMin / 60).toString().replace(".", ",") + " h" : c.durationMin + " min"} · 🎓 Attestation après le test</Text>
-        {c.startsAt ? <Text style={s.meta}>📅 {new Date(c.startsAt).toLocaleString("fr-FR", { dateStyle: "full", timeStyle: "short" })}</Text> : null}
+        {c.outlineMd ? <Card><Text style={s.h}>{t("course_outline")}</Text><Text style={s.body}>{String(c.outlineMd).replace(/[#*]/g, "").trim()}</Text></Card> : null}
+        <Text style={s.meta}>⏱ {c.durationMin >= 60 ? (c.durationMin / 60).toString().replace(".", ",") + " h" : c.durationMin + " min"} · {t("course_cert_after_test")}</Text>
+        {c.startsAt ? <Text style={s.meta}>📅 {new Date(c.startsAt).toLocaleString(lang === "en" ? "en-US" : "fr-FR", { dateStyle: "full", timeStyle: "short" })}</Text> : null}
         {c.location ? <Text style={s.meta}>📍 {c.location}</Text> : null}
-        {!c.author && c.trainerName ? <Card><Text style={s.h}>{c.author.role === "PARTENAIRE" ? "Proposée par" : "Ta formatrice"}</Text><Text style={s.body}>{c.trainerName}{c.trainerTitle ? " · " + c.trainerTitle : ""}</Text></Card> : null}
+        {!c.author && c.trainerName ? <Card><Text style={s.h}>{c.author.role === "PARTENAIRE" ? t("course_offered_by") : t("course_your_trainer")}</Text><Text style={s.body}>{c.trainerName}{c.trainerTitle ? " · " + c.trainerTitle : ""}</Text></Card> : null}
         {c.author ? (
           <Card>
-            <Text style={s.h}>Ta formatrice</Text>
+            <Text style={s.h}>{t("course_your_trainer")}</Text>
             <View style={s.row}>
               {c.author.photoUrl ? <Image source={{ uri: apiOrigin + c.author.photoUrl }} style={s.photo} /> : <View style={[s.photo, { backgroundColor: "#FFD6DD" }]} />}
               <View style={{ flex: 1 }}>
@@ -51,23 +53,23 @@ export default function CourseScreen({ route, navigation }: any) {
               </View>
             </View>
           </Card>) : null}
-        {enrolled ? <Text style={s.ok}>✓ Tu es déjà inscrite</Text> : !form ? (
-          <PrimaryButton title="Je m'inscris" onPress={() => setForm(true)} />
+        {enrolled ? <Text style={s.ok}>{t("course_already_enrolled")}</Text> : !form ? (
+          <PrimaryButton title={t("course_enroll_now")} onPress={() => setForm(true)} />
         ) : (
           <Card>
-            <Text style={s.h}>Tes vraies informations</Text>
-            <Text style={s.meta}>Elles seront écrites sur ton attestation : vérifie bien l'orthographe.</Text>
-            <Text style={s.lab}>Nom et prénoms</Text>
-            <TextInput style={s.in} value={fullName} onChangeText={setFullName} placeholder="Ex. Marie Ngaïssona" autoCapitalize="words" />
-            <Text style={s.lab}>Date de naissance</Text>
+            <Text style={s.h}>{t("course_your_info")}</Text>
+            <Text style={s.meta}>{t("course_your_info_hint")}</Text>
+            <Text style={s.lab}>{t("course_full_name_label")}</Text>
+            <TextInput style={s.in} value={fullName} onChangeText={setFullName} placeholder={t("course_full_name_placeholder")} autoCapitalize="words" />
+            <Text style={s.lab}>{t("course_birthdate_title")}</Text>
             <View style={s.row}>
-              <TextInput style={[s.in, { flex: 1, minWidth: 0, width: 0 }]} value={d} onChangeText={setD} placeholder="Jour" keyboardType="number-pad" maxLength={2} />
-              <TextInput style={[s.in, { flex: 1, minWidth: 0, width: 0 }]} value={m} onChangeText={setM} placeholder="Mois" keyboardType="number-pad" maxLength={2} />
-              <TextInput style={[s.in, { flex: 1.6, minWidth: 0, width: 0 }]} value={y} onChangeText={setY} placeholder="Année" keyboardType="number-pad" maxLength={4} />
+              <TextInput style={[s.in, { flex: 1, minWidth: 0, width: 0 }]} value={d} onChangeText={setD} placeholder={t("course_day")} keyboardType="number-pad" maxLength={2} />
+              <TextInput style={[s.in, { flex: 1, minWidth: 0, width: 0 }]} value={m} onChangeText={setM} placeholder={t("course_month")} keyboardType="number-pad" maxLength={2} />
+              <TextInput style={[s.in, { flex: 1.6, minWidth: 0, width: 0 }]} value={y} onChangeText={setY} placeholder={t("course_year")} keyboardType="number-pad" maxLength={4} />
             </View>
-            <Text style={s.lab}>Lieu de naissance</Text>
-            <TextInput style={s.in} value={place} onChangeText={setPlace} placeholder="Ville ou village" autoCapitalize="words" />
-            <PrimaryButton title={busy ? "Un instant…" : "Confirmer mon inscription"} onPress={submit} />
+            <Text style={s.lab}>{t("course_birthplace_label")}</Text>
+            <TextInput style={s.in} value={place} onChangeText={setPlace} placeholder={t("course_birthplace_placeholder")} autoCapitalize="words" />
+            <PrimaryButton title={busy ? t("course_wait") : t("course_confirm_enroll")} onPress={submit} />
           </Card>)}
       </ScrollView>
     </KeyboardAvoidingView>
