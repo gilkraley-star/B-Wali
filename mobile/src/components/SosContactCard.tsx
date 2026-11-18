@@ -2,6 +2,29 @@ import React, { useEffect, useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { getTrusted, setTrusted } from "../sos";
 
+import { Switch } from "react-native";
+import { AppState } from "react-native";
+import { bubbleCanDraw, bubbleEnabled, bubbleRequestPermission, bubbleSupported, setBubbleEnabled } from "../bubble";
+
+export function BubbleToggle() {
+  const [on, setOn] = useState(false);
+  useEffect(() => { bubbleEnabled().then(setOn); const sub = AppState.addEventListener("change", (st) => { if (st === "active") bubbleEnabled().then(setOn); }); return () => sub.remove(); }, []);
+  if (!bubbleSupported()) return null;
+  const flip = async (v: boolean) => {
+    if (v && !bubbleCanDraw()) { Alert.alert("Une autorisation est nécessaire", "Android va ouvrir un écran : active « Afficher par-dessus les autres applications » pour Wali, puis reviens ici et active la bulle.", [{ text: "Annuler" }, { text: "Ouvrir", onPress: bubbleRequestPermission }]); return; }
+    await setBubbleEnabled(v); setOn(v);
+  };
+  return (
+    <View style={[s.card, { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 }]}>
+      <View style={{ flex: 1 }}>
+        <Text style={[s.t, { color: "#3A2030" }]}>🫧 Bulle flottante</Text>
+        <Text style={s.d}>Quand tu quittes Wali, son icône reste en petite bulle sur l'écran : un appui rouvre Wali, tu peux la déplacer. Désactivée par défaut, car elle se voit si quelqu'un regarde ton téléphone.</Text>
+      </View>
+      <Switch value={on} onValueChange={flip} trackColor={{ true: "#FF5470" }} />
+    </View>
+  );
+}
+
 export default function SosContactCard() {
   const [name, setName] = useState(""); const [phone, setPhone] = useState(""); const [saved, setSaved] = useState(false);
   useEffect(() => { getTrusted().then((c) => { if (c) { setName(c.name); setPhone(c.phone); setSaved(true); } }); }, []);

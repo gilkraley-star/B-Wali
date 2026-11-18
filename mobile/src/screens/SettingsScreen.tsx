@@ -7,7 +7,7 @@ import { useI18n } from "../i18n";
 import { apiOrigin, apiRequest, setToken } from "../api/client";
 import { remindersEnabled, setReminders } from "../notifications";
 import { Lock, checkLock, clearLock, getLock, setLock } from "../lock";
-import SosContactCard from "../components/SosContactCard";
+import SosContactCard, { BubbleToggle } from "../components/SosContactCard";
 import { PatternPad, PinPad } from "../components/LockScreen";
 import { Modal } from "react-native";
 import { KeyboardTapDismiss, Backdrop } from "../theme/kb";
@@ -93,6 +93,7 @@ export default function SettingsScreen({ navigation }: any) {
 
         <Text style={s.sec}>SOS</Text>
         <SosContactCard />
+        <BubbleToggle />
 
         <Text style={s.sec}>LANGUE</Text>
         <View style={s.seg}>

@@ -20,6 +20,7 @@ import AppLock from "./src/components/AppLock";
 import { ScrollView, FlatList } from "react-native";
 import { KeyboardTapDismiss } from "./src/theme/kb";
 import ErrorBoundary from "./src/components/ErrorBoundary";
+import { startBubbleWatcher } from "./src/bubble";
 
 // Un tap n'importe où (hors du champ en cours) ferme le clavier ; faire défiler aussi.
 (ScrollView as any).defaultProps = { ...(ScrollView as any).defaultProps, keyboardShouldPersistTaps: "handled", keyboardDismissMode: "on-drag" };
@@ -27,6 +28,7 @@ import ErrorBoundary from "./src/components/ErrorBoundary";
 export default function App() {
   const [fontsLoaded] = useFonts({ Poppins_600SemiBold, Poppins_700Bold, Poppins_800ExtraBold, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Caveat_500Medium, Caveat_700Bold });
   const [intro, setIntro] = useState<null | "long" | "short" | "done">(null);
+  useEffect(() => { startBubbleWatcher(); }, []);
   useEffect(() => { (async () => {
     let seen = null; try { seen = await AsyncStorage.getItem("wali.introSeen"); await AsyncStorage.setItem("wali.introSeen", "1"); } catch {}
     setIntro(seen ? "short" : "long");
