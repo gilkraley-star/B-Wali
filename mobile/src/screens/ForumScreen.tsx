@@ -6,6 +6,9 @@ import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
 import { colors, spacing } from "../theme/colors";
 import { Card, ScreenTitle } from "../theme/ui";
+import { useRealtime } from "../realtime/realtime";
+
+interface Topic { id: string; title: string; lastText: string; author: { pseudonyme: string }; _count: { comments: number }; lastActivityAt: string }
 
 interface Category {
   id: string;
@@ -25,10 +28,15 @@ export default function ForumScreen({ navigation }: any) {
   const { user } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [topics, setTopics] = useState<Record<string, Topic[]>>({});
+  const loadTopics = useCallback((id: string) => { apiRequest<Topic[]>(`/forum/categories/${id}/posts`, { silent: true }).then((r) => setTopics((m) => ({ ...m, [id]: r }))).catch(() => {}); }, []);
+  const reload = useCallback(() => { apiRequest<Category[]>("/forum/categories", { silent: true }).then(setCategories).catch(() => {}); }, []);
+  useRealtime((e) => { if (e.t === "post" || e.t === "comment") { reload(); if (openId) loadTopics(openId); } });
 
   useFocusEffect(useCallback(() => {
     apiRequest<Category[]>("/forum/categories").then(setCategories).catch(() => {});
-  }, []));
+    if (openId) loadTopics(openId);
+  }, [openId]));
 
   if (user && user.participatesForum === false) {
     return (
@@ -55,20 +63,30 @@ export default function ForumScreen({ navigation }: any) {
         const hot = !!item.lastPostAt && Date.now() - item.lastPostAt < 86400000;
         return (
           <View style={styles.theme}>
-            <TouchableOpacity style={styles.head} activeOpacity={0.85} onPress={() => setOpenId(open ? null : item.id)}>
+            <TouchableOpacity style={styles.head} activeOpacity={0.85} onPress={() => { setOpenId(open ? null : item.id); if (!open) loadTopics(item.id); }}>
               <View style={styles.ico}><Text style={{ fontSize: 26, lineHeight: 32 }}>{themeIcon(item)}</Text></View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.categoryTitle}>{item.titleFr}</Text>
-                <Text style={styles.muted}>{subs.length} sujet{subs.length > 1 ? "s" : ""}{hot ? " · 🔥 actif aujourd'hui" : ""}</Text>
+                <Text style={styles.muted}>{item.postCount || 0} sujet{(item.postCount || 0) > 1 ? "s" : ""}{hot ? " · 🔥 actif aujourd'hui" : ""}</Text>
               </View>
               <Text style={{ color: colors.rose, fontSize: 22 }}>{open ? "⌃" : "⌄"}</Text>
             </TouchableOpacity>
-            {open ? subs.map((c) => (
-              <TouchableOpacity key={c.id} style={styles.sub} activeOpacity={0.8} onPress={() => navigation.navigate("ForumCategory", { categoryId: c.id, title: c.titleFr })}>
-                <Text style={styles.subT}>{c.titleFr}</Text>
-                {c.postCount ? <Text style={styles.cnt}>{c.postCount}</Text> : null}
-                <Text style={{ color: colors.rose, fontSize: 18 }}>›</Text>
-              </TouchableOpacity>)) : null}
+            {open ? (
+              <View>
+                <TouchableOpacity style={styles.sub} activeOpacity={0.8} onPress={() => navigation.navigate("NewPost", { categoryId: item.id })}>
+                  <Text style={[styles.subT, { color: colors.rose }]}>＋ Nouveau sujet dans « {item.titleFr} »</Text>
+                </TouchableOpacity>
+                {(topics[item.id] || []).map((c) => (
+                  <TouchableOpacity key={c.id} style={styles.sub} activeOpacity={0.8} onPress={() => navigation.navigate("Thread", { postId: c.id })}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.subT} numberOfLines={1}>{c.title}</Text>
+                      <Text style={styles.muted} numberOfLines={1}>{c.lastText}</Text>
+                    </View>
+                    {c._count.comments ? <Text style={styles.cnt}>{c._count.comments}</Text> : null}
+                    <Text style={{ color: colors.rose, fontSize: 18 }}>›</Text>
+                  </TouchableOpacity>))}
+                {topics[item.id] && !topics[item.id].length ? <Text style={[styles.muted, { padding: 16 }]}>Aucun sujet pour l'instant. Lance la conversation !</Text> : null}
+              </View>) : null}
           </View>
         );
       }}

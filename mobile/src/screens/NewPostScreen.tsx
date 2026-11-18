@@ -26,8 +26,8 @@ export default function NewPostScreen({ route, navigation }: any) {
     if (!categoryId) return setError("Choisis d’abord un thème.");
     setLoading(true);
     try {
-      await apiRequest("/forum/posts", { method: "POST", body: { categoryId, title, body } });
-      navigation.goBack();
+      const created = await apiRequest<{ id: string }>("/forum/posts", { method: "POST", body: { categoryId, title, body } });
+      navigation.replace("Thread", { postId: created.id });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : t("error_generic"));
     } finally {
@@ -50,24 +50,14 @@ export default function NewPostScreen({ route, navigation }: any) {
           <View style={styles.back}>
             <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setPick(false)} />
             <View style={styles.sheet}>
-              <Text style={styles.sheetT}>Choisis un thème</Text>
+              <Text style={styles.sheetT}>Dans quel thème ?</Text>
               <ScrollView style={{ maxHeight: 460 }}>
-                {parents.map((p) => {
-                  const subs = cats.filter((c) => c.parentId === p.id);
-                  const open = openId === p.id;
-                  return (
-                    <View key={p.id}>
-                      <TouchableOpacity style={styles.row} activeOpacity={0.8} onPress={() => (subs.length ? setOpenId(open ? null : p.id) : (setCategoryId(p.id), setPick(false)))}>
-                        <Text style={{ fontSize: 22 }}>{themeIcon(p)}</Text>
-                        <Text style={styles.rowT}>{p.titleFr}</Text>
-                        <Text style={{ color: "#C24B6A", fontSize: 15 }}>{subs.length ? (open ? "▴" : "▾") : categoryId === p.id ? "✓" : ""}</Text>
-                      </TouchableOpacity>
-                      {open ? [{ id: p.id, titleFr: "Général (" + p.titleFr + ")" }, ...subs].map((c: any) => (
-                        <TouchableOpacity key={c.id} style={styles.sub} activeOpacity={0.8} onPress={() => { setCategoryId(c.id); setPick(false); }}>
-                          <Text style={[styles.subT, categoryId === c.id && { color: "#E04868", fontWeight: "800" }]}>{categoryId === c.id ? "✓ " : ""}{c.titleFr}</Text>
-                        </TouchableOpacity>)) : null}
-                    </View>);
-                })}
+                {parents.map((p) => (
+                  <TouchableOpacity key={p.id} style={styles.row} activeOpacity={0.8} onPress={() => { setCategoryId(p.id); setPick(false); }}>
+                    <Text style={{ fontSize: 22 }}>{themeIcon(p)}</Text>
+                    <Text style={styles.rowT}>{p.titleFr}</Text>
+                    <Text style={{ color: "#C24B6A", fontSize: 15 }}>{categoryId === p.id ? "✓" : ""}</Text>
+                  </TouchableOpacity>))}
                 {!parents.length ? <Text style={{ color: "#5B4852", padding: 14 }}>Chargement des thèmes…</Text> : null}
               </ScrollView>
             </View>

@@ -88,7 +88,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 }
 
 /** Envoie une photo ou une vidéo (fichier du téléphone) et renvoie son adresse sur le serveur. */
-export async function uploadMedia(uri: string, mime: string): Promise<{ url: string; kind: "image" | "video" }> {
+export async function uploadMedia(uri: string, mime: string): Promise<{ url: string; kind: "image" | "video" | "audio" }> {
   const token = await getToken();
   let response: Response;
   try {

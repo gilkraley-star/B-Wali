@@ -169,6 +169,7 @@ model ForumPost {
   anonymous Boolean @default(false) // écrit sans montrer le pseudo
   isHidden   Boolean  @default(false) // masqué suite à signalement traité
   createdAt  DateTime @default(now())
+  lastActivityAt DateTime @default(now()) // dernier message : le sujet actif remonte en haut
 
   comments ForumComment[]
   reports  Report[]
@@ -184,7 +185,8 @@ model ForumComment {
   author    User     @relation(fields: [authorId], references: [id])
   body      String
   mediaUrl  String?  // photo ou vidéo jointe (supprimée avec le message)
-  mediaType String?  // "image" | "video"
+  mediaType String?  // "image" | "video" | "audio" (message vocal)
+  durationSec Int?   // durée d'un message vocal
   anonymous Boolean @default(false)
   isHidden  Boolean  @default(false)
   createdAt DateTime @default(now())

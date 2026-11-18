@@ -8,7 +8,8 @@ import { UPLOAD_DIR } from "./uploads";
 export const MAX_IMAGE_BYTES = 3 * 1024 * 1024; // 3 Mo
 export const MAX_VIDEO_BYTES = 12 * 1024 * 1024; // 12 Mo (≈ 30 secondes en qualité moyenne)
 
-export type MediaKind = "image" | "video";
+export type MediaKind = "image" | "video" | "audio";
+export const MAX_AUDIO_BYTES = 3 * 1024 * 1024; // message vocal ≈ 2 minutes
 
 /** Lit le vrai type à partir des premiers octets (on ne fait pas confiance au Content-Type envoyé). */
 export function sniffMedia(buf: Buffer): { kind: MediaKind; ext: string } | null {
@@ -23,10 +24,13 @@ export function sniffMedia(buf: Buffer): { kind: MediaKind; ext: string } | null
   return null;
 }
 
-export function saveMedia(buf: Buffer): { url: string; kind: MediaKind } {
-  const info = sniffMedia(buf);
+export function saveMedia(buf: Buffer, asAudio = false): { url: string; kind: MediaKind } {
+  let info = sniffMedia(buf);
+  // Un message vocal enregistré par le téléphone est un conteneur MPEG-4 (m4a) : même signature qu'une vidéo, on se fie à l'intention annoncée.
+  if (asAudio) info = (info && info.kind === "video" && info.ext === "mp4") ? { kind: "audio", ext: "m4a" } : (buf.length > 12 && buf.slice(4, 8).toString() === "ftyp" ? { kind: "audio", ext: "m4a" } : null);
   if (!info) throw new Error("Fichier non accepté : photo (JPEG, PNG, WebP) ou vidéo (MP4, MOV) seulement.");
   if (info.kind === "image" && buf.length > MAX_IMAGE_BYTES) throw new Error("Photo trop lourde (3 Mo maximum).");
+  if (info.kind === "audio" && buf.length > MAX_AUDIO_BYTES) throw new Error("Message vocal trop long (2 minutes maximum).");
   if (info.kind === "video" && buf.length > MAX_VIDEO_BYTES) throw new Error("Vidéo trop lourde (12 Mo maximum, environ 30 secondes).");
   const dir = path.join(UPLOAD_DIR, "forum");
   fs.mkdirSync(dir, { recursive: true });
@@ -36,7 +40,7 @@ export function saveMedia(buf: Buffer): { url: string; kind: MediaKind } {
 }
 
 export function isForumMediaUrl(url: string): boolean {
-  return /^\/uploads\/forum\/[0-9a-f-]{36}\.(jpg|png|webp|mp4|mov)$/.test(url);
+  return /^\/uploads\/forum\/[0-9a-f-]{36}\.(jpg|png|webp|mp4|mov|m4a)$/.test(url);
 }
 
 export function deleteMedia(url?: string | null) {

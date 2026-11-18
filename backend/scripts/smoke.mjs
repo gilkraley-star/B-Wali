@@ -215,6 +215,23 @@ const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJA
   r = await call("GET", "/catalog/announcements", { token: fille });
   check("l'annonce image arrive dans l'appli avec bouton et lien", r.status === 200 && r.data.some((a) => a.imageUrl && a.buttonLabel === "Je m'inscris" && a.linkUrl), JSON.stringify(r.data).slice(0, 200));
 
+  // 13. Entre Nous : sujet d'un utilisateur dans un thème général, chat avec message vocal
+  r = await call("GET", "/forum/categories", { token: fille });
+  const theme = r.data.find((c) => !c.parentId);
+  r = await call("POST", "/forum/posts", { token: fille, body: { categoryId: theme.id, title: "Mon sujet de test", body: "Premier message du sujet" } });
+  check("une fille crée un sujet dans un thème général", r.status === 201, JSON.stringify(r.data));
+  const topicId = r.data.id;
+  r = await call("GET", `/forum/categories/${theme.id}/posts`, { token: fille });
+  check("le sujet apparaît en tête de son thème", r.status === 200 && r.data[0] && r.data[0].id === topicId, JSON.stringify(r.data).slice(0, 120));
+  const m4a = Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from("ftypM4A "), Buffer.alloc(40, 1)]);
+  let up = await fetch(base + "/api/forum/media", { method: "POST", headers: { "Content-Type": "audio/mp4", Authorization: "Bearer " + fille }, body: m4a });
+  const upData = await up.json();
+  check("un message vocal est accepté", up.status === 201 && upData.kind === "audio", JSON.stringify(upData));
+  r = await call("POST", `/forum/posts/${topicId}/comments`, { token: fille, body: { body: "", mediaUrl: upData.url, mediaType: "audio", durationSec: 5 } });
+  check("le vocal est publié dans le chat du sujet", r.status === 201, JSON.stringify(r.data));
+  r = await call("GET", `/forum/posts/${topicId}`, { token: fille });
+  check("le chat renvoie le vocal et « mine »", r.status === 200 && r.data.comments.some((c) => c.mediaType === "audio" && c.mine === true && c.durationSec === 5), JSON.stringify(r.data.comments).slice(0, 160));
+
   console.log(failures ? `\n${failures} vérification(s) en échec` : "\nToutes les vérifications passent.");
   process.exit(failures ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

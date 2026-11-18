@@ -14,8 +14,8 @@ const router = Router();
 router.get("/categories", requireAuth, async (req: AuthRequest, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.userId } });
   const categories = await prisma.forumCategory.findMany({ orderBy: [{ sort: "asc" }] });
-  const last = await prisma.forumPost.groupBy({ by: ["categoryId"], where: { isHidden: false }, _max: { createdAt: true }, _count: { _all: true } });
-  const info = new Map<string, { at: number; n: number }>(last.map((g: any) => [g.categoryId, { at: g._max.createdAt ? g._max.createdAt.getTime() : 0, n: g._count._all }] as [string, { at: number; n: number }]));
+  const last = await prisma.forumPost.groupBy({ by: ["categoryId"], where: { isHidden: false }, _max: { lastActivityAt: true }, _count: { _all: true } });
+  const info = new Map<string, { at: number; n: number }>(last.map((g: any) => [g.categoryId, { at: g._max.lastActivityAt ? g._max.lastActivityAt.getTime() : 0, n: g._count._all }] as [string, { at: number; n: number }]));
   // Espaces distincts selon l'âge (section 5.2) : une catégorie restreinte à une tranche
   // d'âge n'est visible que pour cette tranche.
   const visible = categories.filter(
@@ -24,7 +24,8 @@ router.get("/categories", requireAuth, async (req: AuthRequest, res) => {
   // Le thème (ou sous-thème) où l'on vient d'écrire remonte en premier.
   const withInfo = visible.map((c: any) => ({ ...c, lastPostAt: info.get(c.id)?.at || 0, postCount: info.get(c.id)?.n || 0 }));
   const childMax = (id: string) => Math.max(0, ...withInfo.filter((x: any) => x.parentId === id).map((x: any) => x.lastPostAt));
-  const out = withInfo.map((c: any) => ({ ...c, lastPostAt: c.parentId ? c.lastPostAt : Math.max(c.lastPostAt, childMax(c.id)) }));
+  const childN = (id: string) => withInfo.filter((x: any) => x.parentId === id).reduce((n: number, x: any) => n + x.postCount, 0);
+  const out = withInfo.map((c: any) => ({ ...c, lastPostAt: c.parentId ? c.lastPostAt : Math.max(c.lastPostAt, childMax(c.id)), postCount: c.parentId ? c.postCount : c.postCount + childN(c.id) }));
   out.sort((a: any, b: any) => b.lastPostAt - a.lastPostAt || a.sort - b.sort);
   res.json(out);
 });
@@ -67,12 +68,18 @@ router.post("/posts", requireAuth, async (req: AuthRequest, res) => {
 
 // GET /api/forum/categories/:categoryId/posts — seuls les posts modérés et non masqués
 router.get("/categories/:categoryId/posts", requireAuth, async (req: AuthRequest, res) => {
+  const kids = await prisma.forumCategory.findMany({ where: { parentId: req.params.categoryId }, select: { id: true } });
   const posts = await prisma.forumPost.findMany({
-    where: { categoryId: req.params.categoryId, isHidden: false },
-    include: { author: { select: { pseudonyme: true } }, _count: { select: { comments: true } } },
-    orderBy: { createdAt: "desc" },
+    where: { categoryId: { in: [req.params.categoryId, ...kids.map((k: any) => k.id)] }, isHidden: false },
+    include: { author: { select: { pseudonyme: true } }, _count: { select: { comments: true } }, comments: { where: { isHidden: false }, orderBy: { createdAt: "desc" }, take: 1, select: { body: true, mediaType: true } } },
+    orderBy: { lastActivityAt: "desc" },
+    take: 100,
   });
-  res.json(posts.map(maskAuthor));
+  res.json(posts.map((p: any) => {
+    const last = p.comments[0];
+    const { comments, ...rest } = maskAuthor(p);
+    return { ...rest, lastText: last ? (last.body || (last.mediaType === "audio" ? "🎤 Message vocal" : last.mediaType === "video" ? "🎬 Vidéo" : "🖼️ Photo")) : p.body };
+  }));
 });
 
 // GET /api/forum/posts/:id
@@ -98,18 +105,19 @@ router.get("/posts/:id", requireAuth, async (req: AuthRequest, res) => {
     const counts: Record<string, number> = {};
     for (const r of c.reactions) counts[r.emoji] = (counts[r.emoji] || 0) + 1;
     const { reactions, ...rest } = maskAuthor(c);
-    return { ...rest, reactionCounts: counts, myReaction: reactions.find((r: any) => r.userId === me)?.emoji ?? null };
+    return { ...rest, mine: c.authorId === me, reactionCounts: counts, myReaction: reactions.find((r: any) => r.userId === me)?.emoji ?? null };
   });
-  res.json({ ...maskAuthor(post), comments, maxMessages: MAX_MESSAGES, retentionHours: RETENTION_HOURS });
+  res.json({ ...maskAuthor(post), mine: post.authorId === me, comments, maxMessages: MAX_MESSAGES, retentionHours: RETENTION_HOURS });
 });
 
 const commentSchema = z
   .object({
     body: z.string().max(2000).default(""),
     mediaUrl: z.string().optional(),
-    mediaType: z.enum(["image", "video"]).optional(),
+    mediaType: z.enum(["image", "video", "audio"]).optional(),
+    durationSec: z.number().int().min(1).max(180).optional(),
   })
-  .refine((v) => v.body.trim().length > 0 || !!v.mediaUrl, { message: "Écris un message ou ajoute une photo ou une vidéo." })
+  .refine((v) => v.body.trim().length > 0 || !!v.mediaUrl, { message: "Écris un message, ou ajoute une photo, une vidéo ou un vocal." })
   .refine((v) => !v.mediaUrl || (isForumMediaUrl(v.mediaUrl) && !!v.mediaType), { message: "Photo ou vidéo invalide." });
 
 // Envoi d'une photo ou d'une vidéo (corps brut). Renvoie l'adresse à joindre au message.
@@ -118,7 +126,7 @@ const uploadsByUser = new Map<string, number[]>();
 router.post(
   "/media",
   requireAuth,
-  express.raw({ type: ["image/*", "video/*"], limit: MAX_VIDEO_BYTES + 1024 }),
+  express.raw({ type: ["image/*", "video/*", "audio/*"], limit: MAX_VIDEO_BYTES + 1024 }),
   async (req: AuthRequest, res) => {
     const susp = await suspensionError(req.userId!);
     if (susp) return res.status(403).json({ error: susp });
@@ -126,10 +134,10 @@ router.post(
     if (!user?.participatesForum) return res.status(403).json({ error: "Le forum est désactivé pour ce compte." });
     const now = Date.now();
     const recent = (uploadsByUser.get(req.userId!) || []).filter((t) => now - t < 3600_000);
-    if (recent.length >= 10) return res.status(429).json({ error: "Trop d'envois. Réessaie dans un moment." });
+    if (recent.length >= 40) return res.status(429).json({ error: "Trop d'envois. Réessaie dans un moment." });
     if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: "Aucun fichier reçu." });
     try {
-      const saved = saveMedia(req.body);
+      const saved = saveMedia(req.body, String(req.headers["content-type"] || "").startsWith("audio/"));
       uploadsByUser.set(req.userId!, [...recent, now]);
       res.status(201).json(saved);
     } catch (e: any) {
@@ -159,9 +167,11 @@ router.post("/posts/:id/comments", requireAuth, async (req: AuthRequest, res) =>
       body: parsed.data.body,
       mediaUrl: parsed.data.mediaUrl ?? null,
       mediaType: parsed.data.mediaType ?? null,
+      durationSec: parsed.data.durationSec ?? null,
       anonymous: user.anonymousDefault,
     },
   });
+  await prisma.forumPost.update({ where: { id: post.id }, data: { lastActivityAt: new Date() } });
   broadcast({ t: "comment", post: post.id });
   res.status(201).json(comment);
 });
