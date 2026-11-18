@@ -294,6 +294,105 @@ router.put("/content/:type/:id/sources", async (req: AuthRequest, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Gestion complète des contenus : lister, modifier, masquer / republier, supprimer, ajouter
+// ---------------------------------------------------------------------------
+router.get("/contents", async (_req, res) => {
+  const [articles, courses, income, stories] = await Promise.all([
+    prisma.article.findMany({ include: { category: true }, orderBy: { updatedAt: "desc" } }),
+    prisma.course.findMany({ orderBy: { updatedAt: "desc" } }),
+    prisma.incomeActivity.findMany({ orderBy: { updatedAt: "desc" } }),
+    prisma.story.findMany({ orderBy: { createdAt: "desc" } }),
+  ]);
+  res.json([
+    ...articles.map((a: any) => ({ type: "articles", id: a.id, title: a.titleFr, category: a.category.titleFr, status: a.status, text: a.bodyFr })),
+    ...courses.map((c: any) => ({ type: "courses", id: c.id, title: c.title, category: "Formation", status: c.status, text: c.summary })),
+    ...income.map((i: any) => ({ type: "income", id: i.id, title: i.title, category: "Gagner de l'argent", status: i.status, text: i.summary })),
+    ...stories.map((st: any) => ({ type: "stories", id: st.id, title: st.title, category: "Histoire · " + st.category, status: st.status, text: st.summary })),
+  ]);
+});
+
+router.get("/article-categories", async (_req, res) => {
+  res.json(await prisma.articleCategory.findMany({ select: { slug: true, titleFr: true }, orderBy: { titleFr: "asc" } }));
+});
+
+const editSchema = z.object({
+  status: z.enum(["PUBLIE", "MASQUE"]).optional(),
+  title: z.string().min(2).max(200).optional(),
+  text: z.string().min(5).max(20000).optional(),
+});
+router.patch("/contents/:type/:id", async (req: AuthRequest, res) => {
+  const { type, id } = req.params;
+  const model = modelFor(type);
+  if (!model) return res.status(400).json({ error: "Type inconnu." });
+  const p = editSchema.safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: "Valeurs invalides." });
+  const item = await model.findUnique({ where: { id } });
+  if (!item) return res.status(404).json({ error: "Contenu introuvable." });
+  const data: any = {};
+  if (p.data.status) {
+    if (p.data.status === "PUBLIE" && (type === "articles" || type === "income") && parseSources(item.sourcesJson).length === 0) return res.status(400).json({ error: "Impossible de publier : aucune source n'est associée." });
+    data.status = p.data.status;
+  }
+  if (p.data.title) { if (type === "articles") data.titleFr = p.data.title; else data.title = p.data.title; }
+  if (p.data.text) { if (type === "articles") data.bodyFr = p.data.text; else data.summary = p.data.text; }
+  await model.update({ where: { id }, data });
+  await audit(req.userId, "EDIT_CONTENT", `${type}:${titleOf(type, item)}`);
+  res.json({ ok: true });
+});
+
+router.delete("/contents/:type/:id", async (req: AuthRequest, res) => {
+  const { type, id } = req.params;
+  const model = modelFor(type);
+  if (!model) return res.status(400).json({ error: "Type inconnu." });
+  const item = await model.findUnique({ where: { id } });
+  if (!item) return res.status(404).json({ error: "Contenu introuvable." });
+  try {
+    if (type === "articles") await prisma.savedArticle.deleteMany({ where: { articleId: id } });
+    await model.delete({ where: { id } });
+  } catch {
+    return res.status(409).json({ error: "Ce contenu est encore utilisé ailleurs : masque-le plutôt que de le supprimer." });
+  }
+  await audit(req.userId, "DELETE_CONTENT", `${type}:${titleOf(type, item)}`);
+  res.json({ ok: true });
+});
+
+const storyInput = z.object({
+  title: z.string().min(3).max(200), summary: z.string().min(10).max(600),
+  category: z.enum(["CONTE", "HEROINE", "EDUCATION", "AMOUR", "ICI"]), credit: z.string().min(2).max(120),
+  chapters: z.array(z.object({ title: z.string().min(1).max(200), body: z.string().min(10).max(30000) })).min(1).max(40),
+  publish: z.boolean().optional(),
+});
+router.post("/stories", async (req: AuthRequest, res) => {
+  const p = storyInput.safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: p.error.issues[0].message });
+  const d = p.data;
+  const st = await prisma.story.create({ data: { slug: slugify(d.title) + "-" + crypto.randomBytes(2).toString("hex"), title: d.title, summary: d.summary, category: d.category, ageMin: d.category === "AMOUR" ? 18 : 10, origin: "ORIGINALE", credit: d.credit, readMin: Math.max(2, Math.round(d.chapters.reduce((n, c) => n + c.body.length, 0) / 1000)), status: d.publish ? "PUBLIE" : "A_VALIDER", chapters: { create: d.chapters.map((c, i) => ({ position: i + 1, title: c.title, body: c.body })) } } });
+  await audit(req.userId, "CREATE_CONTENT", `stories:${st.title}`);
+  res.status(201).json({ id: st.id });
+});
+
+// Messages d'Entre Nous : voir, masquer, supprimer
+router.get("/forum-posts", async (_req, res) => {
+  const posts = await prisma.forumPost.findMany({ orderBy: { createdAt: "desc" }, take: 150, include: { category: true, author: { select: { pseudonyme: true } }, _count: { select: { comments: true } } } });
+  res.json(posts.map((x: any) => ({ id: x.id, title: x.title, body: x.body, theme: x.category.titleFr, author: x.anonymous ? "Anonyme" : x.author.pseudonyme, comments: x._count.comments, hidden: x.isHidden, at: x.createdAt })));
+});
+router.patch("/forum-posts/:id", async (req: AuthRequest, res) => {
+  const p = z.object({ hidden: z.boolean() }).safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: "Valeur invalide." });
+  await prisma.forumPost.update({ where: { id: req.params.id }, data: { isHidden: p.data.hidden } });
+  await audit(req.userId, p.data.hidden ? "HIDE_POST" : "SHOW_POST", req.params.id);
+  res.json({ ok: true });
+});
+router.delete("/forum-posts/:id", async (req: AuthRequest, res) => {
+  const id = req.params.id;
+  const cs = await prisma.forumComment.findMany({ where: { postId: id }, select: { id: true } });
+  await prisma.report.deleteMany({ where: { OR: [{ postId: id }, { commentId: { in: cs.map((c: any) => c.id) } }] } });
+  await prisma.forumPost.delete({ where: { id } }).catch(() => {});
+  await audit(req.userId, "DELETE_POST", id);
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
 // Formations : programmer / reporter une session (le motif reste interne)
 // ---------------------------------------------------------------------------
 router.get("/courses", async (_req, res) => {

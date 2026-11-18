@@ -66,9 +66,9 @@
     try {
       var res = await Promise.all([
         api("/admin/stats"), api("/admin/queue?status=" + state.filter), api("/admin/users"),
-        api("/admin/courses"), api("/admin/reports"), api("/admin/audit"), api("/admin/reported-users"), api("/admin/cert-templates"), api("/admin/announcements"), api("/admin/forum-categories"), api("/admin/health-centers")
+        api("/admin/courses"), api("/admin/reports"), api("/admin/audit"), api("/admin/reported-users"), api("/admin/cert-templates"), api("/admin/announcements"), api("/admin/forum-categories"), api("/admin/health-centers"), api("/admin/contents"), api("/admin/forum-posts"), api("/admin/article-categories")
       ]);
-      state.stats = res[0]; state.queue = res[1]; state.users = res[2]; state.courses = res[3]; state.reports = res[4]; state.audit = res[5]; state.reported = res[6]; state.tpls = res[7]; state.anns = res[8]; state.fcats = res[9]; state.hcs = res[10];
+      state.stats = res[0]; state.queue = res[1]; state.users = res[2]; state.courses = res[3]; state.reports = res[4]; state.audit = res[5]; state.reported = res[6]; state.tpls = res[7]; state.anns = res[8]; state.fcats = res[9]; state.hcs = res[10]; state.contents = res[11]; state.fposts = res[12]; state.acats = res[13];
     } catch(e){ if (token) flash(e.message, "err"); return; }
     render();
   }
@@ -90,7 +90,7 @@
     };
   }
 
-  var TABS = [["dash","Tableau de bord"],["queue","À valider"],["users","Comptes pro"],["courses","Formations"],["forum","Entre Nous"],["hc","Centres de santé"],["certs","Attestations"],["ann","Annonces"],["reports","Signalements"],["audit","Journal"]];
+  var TABS = [["dash","Tableau de bord"],["queue","À valider"],["users","Comptes pro"],["content","Contenus"],["courses","Formations"],["forum","Entre Nous"],["hc","Centres de santé"],["certs","Attestations"],["ann","Annonces"],["reports","Signalements"],["audit","Journal"]];
 
   function render(){
     if (!token) return loginView();
@@ -98,7 +98,7 @@
     var html = '<header><h1><img src="logo.png" alt="" style="height:34px;vertical-align:middle;margin-right:10px">Wali · Administration</h1><button id="out">Se déconnecter</button></header><nav>' +
       TABS.map(function(t){ return '<button data-t="'+t[0]+'" class="'+(state.tab===t[0]?'on':'')+'">'+t[1]+(t[0]==="queue"&&pending?' ('+pending+')':'')+'</button>'; }).join("") + '</nav><main>';
     if (state.msg) html += '<div class="msg '+state.msg.kind+'">'+esc(state.msg.text)+'</div>';
-    html += ({dash:dash, queue:queueView, users:usersView, courses:coursesView, forum:forumView, hc:hcView, certs:certsView, ann:annView, reports:reportsView, audit:auditView}[state.tab])();
+    html += ({dash:dash, queue:queueView, users:usersView, courses:coursesView, forum:forumView, hc:hcView, content:contentView, certs:certsView, ann:annView, reports:reportsView, audit:auditView}[state.tab])();
     html += '</main>';
     app.innerHTML = html;
     document.getElementById("out").onclick = logout;
@@ -162,6 +162,29 @@
     }).join("") || '<div class="card">Aucun compte professionnel pour le moment.</div>';
     return h;
   }
+
+  var CT = [["articles","Fiches santé"],["courses","Formations"],["income","Gagner de l’argent"],["stories","Histoires"],["posts","Messages Entre Nous"]];
+  function contentView(){
+    var t = state.ctype || "articles";
+    var h = '<div class="row" style="margin-bottom:10px;flex-wrap:wrap">' + CT.map(function(x){ return '<button class="'+(t===x[0]?'p':'s')+'" data-ct="'+x[0]+'">'+x[1]+'</button>'; }).join("") + '</div>';
+    h += '<p><small>Tu gères ici tout ce que les filles voient : <b>Masquer</b> le retire de l’appli sans le perdre, <b>Afficher</b> le remet, <b>Supprimer</b> l’efface pour de bon.</small></p>';
+    if (t === "posts") {
+      var ps = state.fposts || [];
+      return h + (ps.length ? ps.map(function(x){ return '<div class="card"><div class="row"><div class="grow"><b>'+esc(x.title)+'</b> '+(x.hidden?'<span class="tag red">masqué</span>':'')+'<br><small>'+esc(x.theme)+' · '+esc(x.author)+' · '+x.comments+' réponse(s) · '+new Date(x.at).toLocaleDateString("fr-FR")+'</small></div>' +
+        '<button class="s" data-pshow="'+x.id+'" data-v="'+(!x.hidden)+'">'+(x.hidden?'Afficher':'Masquer')+'</button><button class="bad" data-pdel="'+x.id+'">Supprimer</button></div><details><summary style="cursor:pointer;margin-top:6px">Lire</summary><pre>'+esc(x.body)+'</pre></details></div>'; }).join("") : '<div class="card">Aucun message.</div>');
+    }
+    var list = (state.contents || []).filter(function(x){ return x.type === t; });
+    if (t === "articles") h += '<div class="card"><b>➕ Nouvelle fiche santé</b><label>Titre</label><input id="n_title"><label>Rubrique</label><select id="n_cat">'+(state.acats||[]).map(function(c){ return '<option value="'+esc(c.slug)+'">'+esc(c.titleFr)+'</option>'; }).join("")+'</select><label>Texte (40 caractères minimum)</label><textarea id="n_body" rows="5"></textarea>' + srcFields() + '<p><button class="p" id="n_go">Publier la fiche</button></p></div>';
+    if (t === "income") h += '<div class="card"><b>➕ Nouvelle idée de revenu</b><label>Titre</label><input id="n_title"><label>Capital minimum (FCFA)</label><input id="n_cap" type="number" value="0"><label>Résumé</label><textarea id="n_sum" rows="2"></textarea><label>Il te faut…</label><textarea id="n_needs" rows="3"></textarea><label>Comment démarrer</label><textarea id="n_steps" rows="3"></textarea><label>Risques</label><textarea id="n_risks" rows="2"></textarea>' + srcFields() + '<p><button class="p" id="n_go">Publier</button></p></div>';
+    if (t === "stories") h += '<div class="card"><b>➕ Nouvelle histoire</b><label>Titre</label><input id="n_title"><label>Résumé</label><textarea id="n_sum" rows="2"></textarea><label>Type</label><select id="n_scat"><option value="CONTE">Conte</option><option value="HEROINE">Héroïne</option><option value="EDUCATION">Éducation</option><option value="ICI">Histoire d’ici</option><option value="AMOUR">Roman (18+)</option></select><label>Autrice / crédit</label><input id="n_credit" value="Wali"><label>Texte (sépare les chapitres par une ligne contenant ---)</label><textarea id="n_body" rows="8"></textarea><p><button class="p" id="n_go">Publier l’histoire</button></p></div>';
+    if (t === "courses") h += '<p><small>Pour créer ou programmer une formation, utilise l’onglet <b>Formations</b>.</small></p>';
+    return h + (list.length ? list.map(function(x){
+      var hidden = x.status !== "PUBLIE";
+      return '<div class="card"><div class="row"><div class="grow"><b>'+esc(x.title)+'</b> <span class="tag '+(x.status==="PUBLIE"?"green":"red")+'">'+(x.status==="PUBLIE"?"visible":x.status==="MASQUE"?"masqué":x.status==="A_VALIDER"?"à valider":"refusé")+'</span><br><small>'+esc(x.category)+'</small></div>' +
+        '<button class="s" data-cedit="'+x.type+':'+x.id+'">Modifier</button><button class="s" data-cshow="'+x.type+':'+x.id+'" data-v="'+(hidden?"PUBLIE":"MASQUE")+'">'+(hidden?'Afficher':'Masquer')+'</button><button class="bad" data-cdel="'+x.type+':'+x.id+'">Supprimer</button></div></div>'; }).join("") : '<div class="card">Rien ici pour le moment.</div>');
+  }
+  function srcFields(){ return '<label>Source (obligatoire pour la santé et les revenus)</label><input id="n_stitle" placeholder="Titre du document, ex. Guide OMS sur…"><div class="row"><input id="n_sorg" placeholder="Organisme (OMS, UNICEF…)"><input id="n_surl" placeholder="https://…"></div>'; }
+  function srcVal(){ function g(i){ return document.getElementById(i).value.trim(); } return [{ title: g("n_stitle"), org: g("n_sorg"), url: g("n_surl") }]; }
 
   function hcView(){
     var l = state.hcs || [];
@@ -396,6 +419,22 @@
     $$("[data-annact]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/announcements/"+b.dataset.annact, {method:"PATCH", body:{active:b.dataset.v==="true"}}); await load(); }); });
     $$("[data-anndel]").forEach(function(b){ b.onclick = act(async function(){ if(!confirm("Supprimer cette annonce ?")) return; await api("/admin/announcements/"+b.dataset.anndel, {method:"DELETE"}); await load(); }); });
     function dt(id){ var el = app.querySelector('[data-dt="'+id+'"]'); if (!el || !el.value) throw new Error("Choisis d'abord une date et une heure."); return new Date(el.value).toISOString(); }
+    $$("[data-ct]").forEach(function(b){ b.onclick = function(){ state.ctype = b.dataset.ct; render(); }; });
+    $$("[data-cshow]").forEach(function(b){ b.onclick = act(async function(){ var k = b.dataset.cshow.split(":"); await api("/admin/contents/"+k[0]+"/"+k[1], { method:"PATCH", body:{ status: b.dataset.v } }); await load(); flash(b.dataset.v==="PUBLIE" ? "Contenu affiché dans l’appli." : "Contenu masqué."); }); });
+    $$("[data-cdel]").forEach(function(b){ b.onclick = act(async function(){ if(!confirm("Supprimer définitivement ? Pour seulement le cacher, utilise Masquer.")) return; var k = b.dataset.cdel.split(":"); await api("/admin/contents/"+k[0]+"/"+k[1], { method:"DELETE" }); await load(); flash("Contenu supprimé."); }); });
+    $$("[data-cedit]").forEach(function(b){ b.onclick = act(async function(){ var k = b.dataset.cedit.split(":"); var c = (state.contents||[]).filter(function(x){ return x.id===k[1]; })[0]; if(!c) return;
+      var t = prompt("Titre :", c.title); if (t === null) return; var x = prompt(k[0]==="articles" ? "Texte de la fiche :" : "Résumé :", c.text || ""); if (x === null) return;
+      await api("/admin/contents/"+k[0]+"/"+k[1], { method:"PATCH", body:{ title: t.trim() || c.title, text: x.trim() || c.text } }); await load(); flash("Modifié."); }); });
+    $$("[data-pshow]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/forum-posts/"+b.dataset.pshow, { method:"PATCH", body:{ hidden: b.dataset.v === "true" } }); await load(); }); });
+    $$("[data-pdel]").forEach(function(b){ b.onclick = act(async function(){ if(!confirm("Supprimer ce message et ses réponses ?")) return; await api("/admin/forum-posts/"+b.dataset.pdel, { method:"DELETE" }); await load(); flash("Message supprimé."); }); });
+    var ng = document.getElementById("n_go");
+    if (ng) ng.onclick = act(async function(){
+      var t = state.ctype || "articles";
+      if (t === "articles") await api("/admin/content/articles", { method:"POST", body:{ titleFr: v("n_title"), categorySlug: v("n_cat"), bodyFr: v("n_body"), sources: srcVal(), publish: true } });
+      else if (t === "income") await api("/admin/content/income", { method:"POST", body:{ title: v("n_title"), capitalMinFcfa: parseInt(v("n_cap"),10)||0, summary: v("n_sum"), needsMd: v("n_needs"), stepsMd: v("n_steps"), risksMd: v("n_risks"), sources: srcVal(), publish: true } });
+      else if (t === "stories") { var parts = v("n_body").split(/\n\s*---+\s*\n/).map(function(x){ return x.trim(); }).filter(Boolean); await api("/admin/stories", { method:"POST", body:{ title: v("n_title"), summary: v("n_sum"), category: v("n_scat"), credit: v("n_credit"), chapters: parts.map(function(x,i){ return { title: "Chapitre "+(i+1), body: x }; }), publish: true } }); }
+      await load(); flash("Ajouté et visible dans l’appli.");
+    });
     var hg = document.getElementById("h_go");
     if (hg) hg.onclick = act(async function(){
       var pos = parsePos(v("h_pos")); if (v("h_pos") && !pos) return flash("Position invalide : écris par ex. 4.37237, 18.57470.", "err");

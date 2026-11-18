@@ -190,6 +190,22 @@ const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJA
   r = await call("GET", "/catalog/health-centers", { token: fille });
   check("les centres de santé sont visibles côté appli avec leur position", r.status === 200 && r.data.some((c) => c.name === "Centre test" && c.lat === 4.36) && r.data.length >= 10, JSON.stringify(r.data).slice(0, 150));
 
+  // 11. Gestion des contenus par l'admin : masquer, afficher, supprimer, ajouter
+  r = await call("GET", "/admin/contents", { token: admin });
+  check("l'admin voit tous les contenus", r.status === 200 && r.data.some((x) => x.type === "articles"), "n=" + (r.data && r.data.length));
+  const pubArt = r.data.find((x) => x.type === "articles" && x.status === "PUBLIE");
+  r = await call("PATCH", `/admin/contents/articles/${pubArt.id}`, { token: admin, body: { status: "MASQUE" } });
+  check("l'admin masque une fiche", r.status === 200);
+  r = await call("PATCH", `/admin/contents/articles/${pubArt.id}`, { token: admin, body: { status: "PUBLIE" } });
+  check("l'admin réaffiche la fiche", r.status === 200);
+  r = await call("POST", "/admin/stories", { token: admin, body: { title: "Histoire test admin", summary: "Une histoire ajoutée par l'admin.", category: "CONTE", credit: "Wali", chapters: [{ title: "Chapitre 1", body: "Il était une fois une histoire très courte." }], publish: true } });
+  check("l'admin ajoute une histoire", r.status === 201, JSON.stringify(r.data));
+  const newStory = r.data.id;
+  r = await call("DELETE", `/admin/contents/stories/${newStory}`, { token: admin });
+  check("l'admin supprime une histoire", r.status === 200, JSON.stringify(r.data));
+  r = await call("GET", "/admin/forum-posts", { token: admin });
+  check("l'admin voit les messages d'Entre Nous", r.status === 200 && Array.isArray(r.data));
+
   console.log(failures ? `\n${failures} vérification(s) en échec` : "\nToutes les vérifications passent.");
   process.exit(failures ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });
