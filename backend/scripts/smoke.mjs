@@ -210,8 +210,13 @@ const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJA
   const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
   r = await call("POST", "/admin/announcements/image", { token: admin, body: { dataUrl: png } });
   check("l'admin envoie l'image d'une annonce", r.status === 201 && r.data.url.startsWith("/uploads/"), JSON.stringify(r.data));
-  r = await call("POST", "/admin/announcements", { token: admin, body: { title: "Annonce image", imageUrl: r.data.url, buttonLabel: "Je m'inscris", linkUrl: "https://example.org/inscription" } });
-  check("annonce en image créée", r.status === 201, JSON.stringify(r.data));
+  const annImg = r.data.url;
+  r = await call("POST", "/admin/announcements", { token: admin, body: { emoji: "📣", title: "Annonce image", body: "", color: "rose", target: null, imageUrl: annImg, buttonLabel: "Je m'inscris", linkUrl: "https://example.org/inscription", country: null, endsAt: new Date(Date.now() + 86400000).toISOString() } });
+  check("annonce en image créée (formulaire complet de l'admin)", r.status === 201, JSON.stringify(r.data));
+  r = await call("POST", "/admin/announcements", { token: admin, body: { title: "Lien sans https", imageUrl: annImg, linkUrl: "exemple.org" } });
+  check("un lien mal écrit est refusé avec un message clair", r.status === 400 && /adresse compl/.test(r.data.error || ""), JSON.stringify(r.data));
+  r = await call("POST", "/admin/announcements", { token: admin, body: { title: "", imageUrl: annImg } });
+  check("un titre vide est refusé avec un message clair", r.status === 400 && /titre/i.test(r.data.error || ""), JSON.stringify(r.data));
   r = await call("GET", "/catalog/announcements", { token: fille });
   check("l'annonce image arrive dans l'appli avec bouton et lien", r.status === 200 && r.data.some((a) => a.imageUrl && a.buttonLabel === "Je m'inscris" && a.linkUrl), JSON.stringify(r.data).slice(0, 200));
 

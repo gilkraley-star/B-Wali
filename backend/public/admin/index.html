@@ -429,6 +429,7 @@
         var r = Math.max(W / im.width, H / im.height), w = im.width * r, h = im.height * r;
         var cx = c.getContext("2d"); cx.fillStyle = "#fff"; cx.fillRect(0, 0, W, H); cx.drawImage(im, (W - w) / 2, (H - h) / 2, w, h);
         state.annImg = c.toDataURL("image/jpeg", 0.85);
+        state.annImgName = (f.name || "Annonce").replace(/\.[a-z0-9]+$/i, "").replace(/[_-]+/g, " ").trim() || "Annonce";
         document.getElementById("a_prev").innerHTML = '<img src="'+state.annImg+'" style="width:100%;max-width:420px;border-radius:14px;display:block"><small>✅ Image prête (recadrée).</small>';
       };
       im.onerror = function(){ flash(/\.(heic|heif)$/i.test(f.name) ? "Photo iPhone (HEIC) non lue par le navigateur : enregistre-la en JPEG puis réessaie." : "Image illisible : essaie un fichier JPEG ou PNG.", "err"); };
@@ -440,10 +441,19 @@
     var ago = document.getElementById("a_go");
     if (ago) ago.onclick = act(async function(){
       var e = document.getElementById("a_end").value, imageUrl = null;
-      if (state.annImg) { var up = await api("/admin/announcements/image", {method:"POST", body:{dataUrl: state.annImg}}); imageUrl = up.url; }
+      if (state.annImg) {
+        var up;
+        try { up = await api("/admin/announcements/image", {method:"POST", body:{dataUrl: state.annImg}}); }
+        catch (err) { throw new Error(/404/.test(err.message) ? "Le serveur n'accepte pas encore les images : mets-le à jour (git pull puis bash install.sh)." : "L'envoi de l'image a échoué : " + err.message); }
+        imageUrl = up.url;
+      }
+      // Avec une image, le titre ne s'affiche pas : s'il manque, on reprend le nom du fichier (il sert de repère dans la liste).
+      var titleEl = document.getElementById("a_title");
+      if (!titleEl.value.trim() && state.annImgName) titleEl.value = state.annImgName.slice(0, 60);
       var link = v("a_link");
+      if (link && !/^https?:\/\//i.test(link)) link = "https://" + link;
       await api("/admin/announcements", {method:"POST", body:{emoji:v("a_emoji")||"📣", title:v("a_title"), body:v("a_body"), color:document.getElementById("a_color").value, target:document.getElementById("a_target").value||null, imageUrl: imageUrl, buttonLabel: v("a_btn")||null, linkUrl: link||null, country:document.getElementById("a_country").value||null, endsAt: e ? new Date(e+"T23:59:00").toISOString() : null}});
-      state.annImg = null; state.annForm = null; await load(); flash("Annonce publiée : elle défile sur l'accueil.");
+      state.annImg = null; state.annImgName = null; state.annForm = null; await load(); flash("Annonce publiée : elle défile sur l'accueil.");
     });
     $$("[data-annact]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/announcements/"+b.dataset.annact, {method:"PATCH", body:{active:b.dataset.v==="true"}}); await load(); }); });
     $$("[data-anndel]").forEach(function(b){ b.onclick = act(async function(){ if(!confirm("Supprimer cette annonce ?")) return; await api("/admin/announcements/"+b.dataset.anndel, {method:"DELETE"}); await load(); }); });

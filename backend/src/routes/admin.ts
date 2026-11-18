@@ -628,15 +628,28 @@ router.post("/announcements/image", async (req: AuthRequest, res) => {
   if (!p.success) return res.status(400).json({ error: "Image manquante." });
   try { res.status(201).json({ url: savePhotoFromDataUrl(p.data.dataUrl) }); } catch (e: any) { res.status(400).json({ error: e.message }); }
 });
+const ANN_ERRORS: Record<string, string> = {
+  title: "Donne un titre à l'annonce (2 à 60 lettres).",
+  body: "Le texte court ne doit pas dépasser 140 lettres.",
+  linkUrl: "Le lien doit être une adresse complète, par exemple https://exemple.org.",
+  buttonLabel: "Le texte du bouton ne doit pas dépasser 30 lettres.",
+  imageUrl: "L'image n'a pas été enregistrée correctement : choisis-la de nouveau.",
+  endsAt: "La date de fin n'est pas valide.",
+  country: "Le pays choisi n'est pas valide.",
+  color: "La couleur choisie n'est pas valide.",
+};
 router.post("/announcements", async (req: AuthRequest, res) => {
   const p = annBody.safeParse(req.body);
-  if (!p.success) return res.status(400).json({ error: "Titre (2 à 60 lettres) obligatoire." });
+  if (!p.success) {
+    const field = String(p.error.issues[0].path[0] || "");
+    return res.status(400).json({ error: ANN_ERRORS[field] || `Champ « ${field} » invalide.` });
+  }
   const a = await prisma.announcement.create({ data: { ...p.data, endsAt: p.data.endsAt ? new Date(p.data.endsAt) : null } });
   await audit(req.userId, "CREATE_ANNOUNCEMENT", a.title); res.status(201).json(a);
 });
 router.patch("/announcements/:id", async (req: AuthRequest, res) => {
   const p = annBody.partial().safeParse(req.body);
-  if (!p.success) return res.status(400).json({ error: "Données invalides." });
+  if (!p.success) return res.status(400).json({ error: ANN_ERRORS[String(p.error.issues[0].path[0] || "")] || "Données invalides." });
   const a = await prisma.announcement.update({ where: { id: req.params.id }, data: { ...p.data, endsAt: p.data.endsAt ? new Date(p.data.endsAt) : p.data.endsAt === null ? null : undefined } });
   res.json(a);
 });
