@@ -14,6 +14,9 @@ const FILES = {
   win: require("../../assets/sounds/win.wav"),
   lose: require("../../assets/sounds/lose.wav"),
   coin: require("../../assets/sounds/coin.wav"),
+  send: require("../../assets/sounds/send.wav"),
+  receive: require("../../assets/sounds/receive.wav"),
+  recstart: require("../../assets/sounds/recstart.wav"),
 };
 export type SoundName = keyof typeof FILES;
 

@@ -9,6 +9,12 @@ import { useNet } from "../context/NetContext";
 import { useI18n } from "../i18n";
 import { colors, spacing } from "../theme/colors";
 import { Card, PrimaryButton, TextInput } from "../theme/ui";
+import { play } from "../games/sounds";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const AV = ["#FF8FA3", "#9B7BEA", "#4FB89A", "#F4A261", "#5AA9E6", "#E76F9A", "#8AB06B"];
+const avColor = (n: string) => AV[[...n].reduce((a, c) => a + c.charCodeAt(0), 0) % AV.length];
+const dayLabel = (d?: string) => { if (!d) return ""; const x = new Date(d), n = new Date(); const diff = Math.round((new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime() - new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()) / 86400000); return diff === 0 ? "Aujourd'hui" : diff === 1 ? "Hier" : x.toLocaleDateString("fr-FR", { day: "numeric", month: "long" }); };
 
 interface Comment {
   id: string;
@@ -118,6 +124,9 @@ export default function ThreadScreen({ route, navigation }: any) {
   const [menu, setMenu] = useState<{ c?: Comment; isPost?: boolean } | null>(null);
   const [rec, setRec] = useState<{ r: Audio.Recording; sec: number } | null>(null);
   const list = useRef<FlatList>(null);
+  const [tip, setTip] = useState(false);
+  const seen = useRef(0);
+  useEffect(() => { AsyncStorage.getItem("wali.forum.tip.v1").then((v) => { if (!v) { setTip(true); AsyncStorage.setItem("wali.forum.tip.v1", "1"); } }).catch(() => {}); }, []);
   useEffect(() => { apiRequest<typeof FALLBACK_REASONS>("/forum/report-reasons", { silent: true }).then(setReasons).catch(() => {}); }, []);
 
   const load = useCallback(() => {
@@ -125,6 +134,11 @@ export default function ThreadScreen({ route, navigation }: any) {
   }, [postId]);
 
   useFocusEffect(load);
+  useEffect(() => {
+    const n = post ? post.comments.length : 0;
+    if (post && seen.current && n > seen.current && !post.comments[n - 1]?.mine) play("receive");
+    if (post) seen.current = n || 1;
+  }, [post?.comments.length]);
   // Temps réel : un nouveau message, un vocal ou une réaction arrive sans rien actualiser
   useRealtime((e) => { if (e.t === "comment" && e.post === postId) load(); });
   useEffect(() => () => { rec?.r.stopAndUnloadAsync().catch(() => {}); }, []);
@@ -151,6 +165,7 @@ export default function ThreadScreen({ route, navigation }: any) {
       if (!media && attachment) media = await uploadMedia(attachment.uri, attachment.mime);
       await apiRequest(`/forum/posts/${postId}/comments`, { method: "POST", body: { body: text, ...(media ? { mediaUrl: media.url, mediaType: media.kind, ...(media.dur ? { durationSec: media.dur } : {}) } : {}) } });
       setReply(""); setAttachment(null);
+      play("send");
       load();
     } catch (e) {
       if (e instanceof ApiError && e.status !== 0) Alert.alert("Message non envoyé", e.message);
@@ -163,7 +178,7 @@ export default function ThreadScreen({ route, navigation }: any) {
       if (!p.granted) { Alert.alert("Micro", "Autorise le micro pour envoyer un message vocal."); return; }
       await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
       const { recording } = await Audio.Recording.createAsync(REC_OPTIONS);
-      setRec({ r: recording, sec: 0 });
+      setRec({ r: recording, sec: 0 }); play("recstart");
     } catch { Alert.alert("Micro", "Impossible de démarrer l'enregistrement."); }
   };
   const stopRec = async (sendIt: boolean) => {
@@ -212,21 +227,38 @@ export default function ThreadScreen({ route, navigation }: any) {
         keyExtractor={(c) => c.id}
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
-        ListHeaderComponent={<Text style={styles.retention}>⏳ Les vieux messages disparaissent après {post.retentionHours ?? 48} h. Appuie longuement sur un message pour réagir ou le signaler.</Text>}
-        renderItem={({ item }) => {
+        ListHeaderComponent={tip ? (
+          <TouchableOpacity activeOpacity={0.9} onPress={() => setTip(false)} style={styles.tip}>
+            <Text style={styles.tipT}>💡 Ici, on s'écrit en direct. Les vieux messages disparaissent après {post.retentionHours ?? 48} h. Appuie longuement sur un message pour réagir ou le signaler.</Text>
+            <Text style={styles.tipOk}>Compris ✓</Text>
+          </TouchableOpacity>) : null}
+        renderItem={({ item, index }) => {
           const mine = !!item.mine;
+          const prev = index > 0 ? data[index - 1] : null;
+          const next = index < data.length - 1 ? data[index + 1] : null;
+          const sameAsPrev = !!prev && prev.author.pseudonyme === item.author.pseudonyme && !!prev.mine === mine && Math.abs(new Date(item.createdAt || 0).getTime() - new Date(prev.createdAt || 0).getTime()) < 5 * 60000;
+          const sameAsNext = !!next && next.author.pseudonyme === item.author.pseudonyme && !!next.mine === mine && Math.abs(new Date(next.createdAt || 0).getTime() - new Date(item.createdAt || 0).getTime()) < 5 * 60000;
+          const newDay = !prev || dayLabel(prev.createdAt) !== dayLabel(item.createdAt);
           const counts = Object.entries((item.reactionCounts || {}) as Record<string, number>).filter(([, n]) => n > 0);
+          const name = item.author.pseudonyme;
           return (
-            <View style={{ alignItems: mine ? "flex-end" : "flex-start", marginBottom: 10 }}>
-              {!mine && <Text style={styles.who}>{item.author.pseudonyme}</Text>}
-              <TouchableOpacity activeOpacity={0.9} onLongPress={() => setMenu(item.first ? { isPost: true } : { c: item })} style={[styles.bubble, mine ? styles.mine : styles.other, item.first && { borderWidth: 1.5, borderColor: "#F2B8C6" }]}>
-                {item.first ? <Text style={[styles.topic, mine && { color: "#fff" }]}>{post.title}</Text> : null}
-                {!!item.body && <Text style={[styles.msg, mine && { color: "#fff" }]}>{item.body}</Text>}
-                {item.mediaUrl && item.mediaType === "audio" ? <VoicePlayer url={item.mediaUrl} duration={item.durationSec} mine={mine} /> : null}
-                {item.mediaUrl && (item.mediaType === "image" || item.mediaType === "video") ? <MediaView url={item.mediaUrl} type={item.mediaType} /> : null}
-                <Text style={[styles.time, mine && { color: "#FFE0E6" }]}>{hhmm(item.createdAt)}</Text>
-              </TouchableOpacity>
-              {counts.length ? <View style={{ flexDirection: "row", gap: 4, marginTop: 2 }}>{counts.map(([e, n]) => <Text key={e} style={styles.react}>{e} {n}</Text>)}</View> : null}
+            <View>
+              {newDay ? <View style={styles.dayWrap}><Text style={styles.day}>{dayLabel(item.createdAt)}</Text></View> : null}
+              <View style={{ flexDirection: "row", justifyContent: mine ? "flex-end" : "flex-start", alignItems: "flex-end", marginTop: sameAsPrev ? 2 : 10 }}>
+                {!mine && (sameAsNext ? <View style={{ width: 34 }} /> : <View style={[styles.avatar, { backgroundColor: avColor(name) }]}><Text style={styles.avatarT}>{name.trim().charAt(0).toUpperCase() || "?"}</Text></View>)}
+                <View style={{ maxWidth: "80%", alignItems: mine ? "flex-end" : "flex-start" }}>
+                  {!mine && !sameAsPrev ? <Text style={[styles.who, { color: avColor(name) }]}>{name}</Text> : null}
+                  <TouchableOpacity activeOpacity={0.9} onLongPress={() => setMenu(item.first ? { isPost: true } : { c: item })}
+                    style={[styles.bubble, mine ? styles.mine : styles.other, mine ? (!sameAsNext && { borderBottomRightRadius: 4 }) : (!sameAsNext && { borderBottomLeftRadius: 4 }), item.first && { borderWidth: 1.5, borderColor: "#F2B8C6" }]}>
+                    {item.first ? <Text style={[styles.topic, mine && { color: "#fff" }]}>{post.title}</Text> : null}
+                    {!!item.body && <Text style={[styles.msg, mine && { color: "#fff" }]}>{item.body}</Text>}
+                    {item.mediaUrl && item.mediaType === "audio" ? <VoicePlayer url={item.mediaUrl} duration={item.durationSec} mine={mine} /> : null}
+                    {item.mediaUrl && (item.mediaType === "image" || item.mediaType === "video") ? <MediaView url={item.mediaUrl} type={item.mediaType} /> : null}
+                    <Text style={[styles.time, mine && { color: "#FFE0E6" }]}>{hhmm(item.createdAt)}{mine ? "  ✓" : ""}</Text>
+                  </TouchableOpacity>
+                  {counts.length ? <View style={styles.reactRow}>{counts.map(([e, n]) => <Text key={e} style={styles.react}>{e} {n}</Text>)}</View> : null}
+                </View>
+              </View>
             </View>
           );
         }}
@@ -282,14 +314,18 @@ export default function ThreadScreen({ route, navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: "#F8ECE6" },
+  tip: { backgroundColor: "#FFF3C9", borderRadius: 16, padding: 12, marginBottom: 8 }, tipT: { color: "#5B4852", fontSize: 13, lineHeight: 18 }, tipOk: { color: "#B7791F", fontWeight: "800", fontSize: 12.5, marginTop: 6, alignSelf: "flex-end" },
+  dayWrap: { alignItems: "center", marginVertical: 10 }, day: { backgroundColor: "rgba(255,255,255,0.85)", color: "#7A5C6B", fontSize: 12, fontWeight: "700", paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, overflow: "hidden" },
+  avatar: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center", marginRight: 4, marginBottom: 2 }, avatarT: { color: "#fff", fontWeight: "800", fontSize: 13 },
+  reactRow: { flexDirection: "row", gap: 4, marginTop: -6, marginBottom: 2, marginHorizontal: 8, zIndex: 2 },
   postTitle: { fontSize: 18, fontWeight: "700", color: colors.prune },
   muted: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
   reportLink: { color: colors.danger, fontSize: 12 },
   retention: { fontSize: 12, color: colors.textMuted, backgroundColor: "#FFF0E9", borderRadius: 12, padding: spacing.sm, marginBottom: spacing.sm, overflow: "hidden", lineHeight: 17 },
-  who: { fontSize: 11.5, color: colors.textMuted, marginBottom: 2, marginLeft: 8 },
-  bubble: { maxWidth: "82%", borderRadius: 18, paddingHorizontal: 13, paddingVertical: 9 },
-  mine: { backgroundColor: colors.rose, borderBottomRightRadius: 5 }, other: { backgroundColor: "#fff", borderBottomLeftRadius: 5 },
+  who: { fontSize: 12, fontWeight: "700", marginBottom: 2, marginLeft: 6 },
+  bubble: { borderRadius: 20, paddingHorizontal: 13, paddingVertical: 8, shadowColor: "#3B1D33", shadowOpacity: 0.07, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  mine: { backgroundColor: "#FF5470" }, other: { backgroundColor: "#fff" },
   topic: { fontWeight: "800", fontSize: 15.5, color: colors.prune, marginBottom: 4 },
   msg: { color: colors.text, fontSize: 15, lineHeight: 21 }, time: { fontSize: 10.5, color: colors.textMuted, alignSelf: "flex-end", marginTop: 3 },
   react: { backgroundColor: "#fff", borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2, fontSize: 12, overflow: "hidden" },
