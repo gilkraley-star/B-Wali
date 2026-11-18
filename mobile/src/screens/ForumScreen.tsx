@@ -73,9 +73,6 @@ export default function ForumScreen({ navigation }: any) {
             </TouchableOpacity>
             {open ? (
               <View>
-                <TouchableOpacity style={styles.sub} activeOpacity={0.8} onPress={() => navigation.navigate("NewPost", { categoryId: item.id })}>
-                  <Text style={[styles.subT, { color: colors.rose }]}>＋ Nouveau sujet dans « {item.titleFr} »</Text>
-                </TouchableOpacity>
                 {(topics[item.id] || []).map((c) => (
                   <TouchableOpacity key={c.id} style={styles.sub} activeOpacity={0.8} onPress={() => navigation.navigate("Thread", { postId: c.id })}>
                     <View style={{ flex: 1 }}>

@@ -50,7 +50,9 @@ interface Post {
 // Photo ou vidéo d'un message : floutée tant qu'on n'appuie pas dessus (protège les plus jeunes).
 function MediaView({ url, type }: { url: string; type: "image" | "video" | "audio" }) {
   if (type === "audio") return null;
-  const [shown, setShown] = useState(false);
+  // Les photos s'affichent tout de suite ; seules les vidéos (plus lourdes à charger) restent
+  // derrière un appui, pour ne pas consommer de données sans que la fille l'ait demandé.
+  const [shown, setShown] = useState(type === "image");
   const uri = apiOrigin + url;
   if (!shown) {
     return (
