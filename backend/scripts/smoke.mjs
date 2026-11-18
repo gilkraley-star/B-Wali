@@ -230,6 +230,12 @@ const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJA
   r = await call("POST", `/forum/posts/${topicId}/comments`, { token: fille, body: { body: "", mediaUrl: upData.url, mediaType: "audio", durationSec: 5 } });
   check("le vocal est publié dans le chat du sujet", r.status === 201, JSON.stringify(r.data));
   r = await call("GET", `/forum/posts/${topicId}`, { token: fille });
+  const firstComment = r.data.comments[0].id;
+  r = await call("POST", `/forum/posts/${topicId}/comments`, { token: fille, body: { body: "Je réponds à ce message", replyToId: firstComment } });
+  check("on répond à un message précis", r.status === 201, JSON.stringify(r.data));
+  r = await call("GET", `/forum/posts/${topicId}`, { token: fille });
+  check("le message cité est renvoyé avec la réponse", r.status === 200 && r.data.comments.some((c) => c.replyTo && c.replyTo.id === firstComment), JSON.stringify(r.data.comments).slice(0, 160));
+  r = await call("GET", `/forum/posts/${topicId}`, { token: fille });
   check("le chat renvoie le vocal et « mine »", r.status === 200 && r.data.comments.some((c) => c.mediaType === "audio" && c.mine === true && c.durationSec === 5), JSON.stringify(r.data.comments).slice(0, 160));
 
   console.log(failures ? `\n${failures} vérification(s) en échec` : "\nToutes les vérifications passent.");

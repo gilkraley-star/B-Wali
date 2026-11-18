@@ -1,6 +1,6 @@
 import { useRealtime } from "../realtime/realtime";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, FlatList, Image, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput as RNTextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Animated, Easing, FlatList, Image, KeyboardAvoidingView, Modal, PanResponder, Platform, StyleSheet, Text, TextInput as RNTextInput, TouchableOpacity, View, Vibration } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Audio, ResizeMode, Video } from "expo-av";
 import { useFocusEffect } from "@react-navigation/native";
@@ -24,6 +24,7 @@ interface Comment {
   durationSec?: number | null;
   createdAt?: string;
   mine?: boolean;
+  replyTo?: { id: string; body: string; mediaType?: string | null; author: { pseudonyme: string } } | null;
   author: { pseudonyme: string };
   reactionCounts?: Record<string, number>;
   myReaction?: string | null;
@@ -122,7 +123,17 @@ export default function ThreadScreen({ route, navigation }: any) {
   const [reportReason, setReportReason] = useState("");
   const [reasons, setReasons] = useState(FALLBACK_REASONS);
   const [menu, setMenu] = useState<{ c?: Comment; isPost?: boolean } | null>(null);
-  const [rec, setRec] = useState<{ r: Audio.Recording; sec: number } | null>(null);
+  const [recSec, setRecSec] = useState<number | null>(null);
+  const [cancelZone, setCancelZone] = useState(false);
+  const [quoted, setQuoted] = useState<Comment | null>(null);
+  const recRef = useRef<Audio.Recording | null>(null);
+  const secRef = useRef(0);
+  const tick = useRef<any>(null);
+  const dragX = useRef(new Animated.Value(0)).current;
+  const micScale = useRef(new Animated.Value(1)).current;
+  const cancelRef = useRef(false);
+  const holding = useRef(false);
+  const fns = useRef<{ start: () => void; stop: (send: boolean) => void }>({ start: () => {}, stop: () => {} });
   const list = useRef<FlatList>(null);
   const [tip, setTip] = useState(false);
   const seen = useRef(0);
@@ -141,9 +152,7 @@ export default function ThreadScreen({ route, navigation }: any) {
   }, [post?.comments.length]);
   // Temps réel : un nouveau message, un vocal ou une réaction arrive sans rien actualiser
   useRealtime((e) => { if (e.t === "comment" && e.post === postId) load(); });
-  useEffect(() => () => { rec?.r.stopAndUnloadAsync().catch(() => {}); }, []);
-  useEffect(() => { if (!rec) return; const id = setInterval(() => setRec((x) => (x ? { ...x, sec: x.sec + 1 } : x)), 1000); return () => clearInterval(id); }, [!!rec]);
-  useEffect(() => { if (rec && rec.sec >= MAX_REC) stopRec(true); }, [rec?.sec]);
+  useEffect(() => () => { clearInterval(tick.current); recRef.current?.stopAndUnloadAsync().catch(() => {}); }, []);
 
   const pickMedia = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -163,8 +172,8 @@ export default function ThreadScreen({ route, navigation }: any) {
     try {
       let media: { url: string; kind: "image" | "video" | "audio"; dur?: number } | null = extra || null;
       if (!media && attachment) media = await uploadMedia(attachment.uri, attachment.mime);
-      await apiRequest(`/forum/posts/${postId}/comments`, { method: "POST", body: { body: text, ...(media ? { mediaUrl: media.url, mediaType: media.kind, ...(media.dur ? { durationSec: media.dur } : {}) } : {}) } });
-      setReply(""); setAttachment(null);
+      await apiRequest(`/forum/posts/${postId}/comments`, { method: "POST", body: { body: text, ...(quoted ? { replyToId: quoted.id } : {}), ...(media ? { mediaUrl: media.url, mediaType: media.kind, ...(media.dur ? { durationSec: media.dur } : {}) } : {}) } });
+      setReply(""); setAttachment(null); setQuoted(null);
       play("send");
       load();
     } catch (e) {
@@ -178,24 +187,62 @@ export default function ThreadScreen({ route, navigation }: any) {
       if (!p.granted) { Alert.alert("Micro", "Autorise le micro pour envoyer un message vocal."); return; }
       await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
       const { recording } = await Audio.Recording.createAsync(REC_OPTIONS);
-      setRec({ r: recording, sec: 0 }); play("recstart");
+      // Doigt déjà relâché pendant la préparation du micro : on arrête tout de suite.
+      if (!holding.current) { recording.stopAndUnloadAsync().catch(() => {}); Audio.setAudioModeAsync({ allowsRecordingIOS: false }).catch(() => {}); return; }
+      recRef.current = recording; secRef.current = 0; setRecSec(0); play("recstart"); Vibration.vibrate(18);
+      clearInterval(tick.current);
+      tick.current = setInterval(() => { secRef.current += 1; setRecSec(secRef.current); if (secRef.current >= MAX_REC) fns.current.stop(true); }, 1000);
     } catch { Alert.alert("Micro", "Impossible de démarrer l'enregistrement."); }
   };
   const stopRec = async (sendIt: boolean) => {
-    const cur = rec; if (!cur) return; setRec(null);
+    clearInterval(tick.current);
+    const r = recRef.current; recRef.current = null;
+    const sec = secRef.current; setRecSec(null); setCancelZone(false);
+    if (!r) return;
     try {
-      await cur.r.stopAndUnloadAsync();
+      await r.stopAndUnloadAsync();
       await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
-      const uri = cur.r.getURI();
-      if (!sendIt || !uri || cur.sec < 1) return;
+      const uri = r.getURI();
+      if (!sendIt || !uri) return;
+      if (sec < 1) { Alert.alert("Message vocal", "Maintiens le micro appuyé pour enregistrer, puis relâche pour envoyer."); return; }
       if (!requireOnline()) return;
       setSending(true);
-      try {
-        const up = await uploadMedia(uri, "audio/mp4");
-        await send({ url: up.url, kind: "audio", dur: cur.sec });
-      } finally { setSending(false); }
+      try { const up = await uploadMedia(uri, "audio/mp4"); await send({ url: up.url, kind: "audio", dur: sec }); }
+      finally { setSending(false); }
     } catch (e: any) { if (e instanceof ApiError && e.status !== 0) Alert.alert("Vocal non envoyé", e.message); }
   };
+  fns.current = { start: startRec, stop: stopRec };
+
+  // Geste du micro : on maintient pour enregistrer, on glisse vers la gauche pour annuler (comme dans les messageries).
+  const mic = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        cancelRef.current = false; holding.current = true; dragX.setValue(0);
+        Animated.spring(micScale, { toValue: 1.35, useNativeDriver: true, friction: 5 }).start();
+        fns.current.start();
+      },
+      onPanResponderMove: (_e, g) => {
+        const dx = Math.max(-150, Math.min(0, g.dx));
+        dragX.setValue(dx);
+        const c = dx < -95;
+        if (c !== cancelRef.current) { cancelRef.current = c; setCancelZone(c); if (c) Vibration.vibrate(22); }
+      },
+      onPanResponderRelease: () => {
+        holding.current = false;
+        Animated.parallel([
+          Animated.spring(micScale, { toValue: 1, useNativeDriver: true, friction: 5 }),
+          Animated.timing(dragX, { toValue: 0, duration: 140, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        ]).start();
+        fns.current.stop(!cancelRef.current);
+      },
+      onPanResponderTerminate: () => {
+        holding.current = false; micScale.setValue(1); dragX.setValue(0);
+        fns.current.stop(false);
+      },
+    })
+  ).current;
 
   const openReport = (targetId: string, kind: "postId" | "commentId") => { setMenu(null); setReportReason(""); setReportTarget({ id: targetId, kind }); };
   const submitReport = async () => {
@@ -251,6 +298,11 @@ export default function ThreadScreen({ route, navigation }: any) {
                   <TouchableOpacity activeOpacity={0.9} onLongPress={() => setMenu(item.first ? { isPost: true } : { c: item })}
                     style={[styles.bubble, mine ? styles.mine : styles.other, mine ? (!sameAsNext && { borderBottomRightRadius: 4 }) : (!sameAsNext && { borderBottomLeftRadius: 4 }), item.first && { borderWidth: 1.5, borderColor: "#F2B8C6" }]}>
                     {item.first ? <Text style={[styles.topic, mine && { color: "#fff" }]}>{post.title}</Text> : null}
+                    {item.replyTo ? (
+                      <View style={[styles.quote, mine ? { backgroundColor: "rgba(255,255,255,0.22)", borderLeftColor: "#fff" } : null]}>
+                        <Text style={[styles.quoteWho, mine && { color: "#fff" }]} numberOfLines={1}>{item.replyTo.author.pseudonyme}</Text>
+                        <Text style={[styles.quoteT, mine && { color: "#FFE9EE" }]} numberOfLines={2}>{item.replyTo.body || (item.replyTo.mediaType === "audio" ? "🎤 Message vocal" : item.replyTo.mediaType === "video" ? "🎬 Vidéo" : "🖼️ Photo")}</Text>
+                      </View>) : null}
                     {!!item.body && <Text style={[styles.msg, mine && { color: "#fff" }]}>{item.body}</Text>}
                     {item.mediaUrl && item.mediaType === "audio" ? <VoicePlayer url={item.mediaUrl} duration={item.durationSec} mine={mine} /> : null}
                     {item.mediaUrl && (item.mediaType === "image" || item.mediaType === "video") ? <MediaView url={item.mediaUrl} type={item.mediaType} /> : null}
@@ -266,23 +318,39 @@ export default function ThreadScreen({ route, navigation }: any) {
       {attachment ? (
         <View style={styles.attachRow}><Text style={styles.muted}>{attachment.kind === "video" ? "🎬 Vidéo prête" : "🖼️ Photo prête"}</Text><Text style={styles.reportLink} onPress={() => setAttachment(null)}>Retirer</Text></View>
       ) : null}
-      {rec ? (
-        <View style={styles.composer}>
-          <TouchableOpacity onPress={() => stopRec(false)} style={styles.roundBtn}><Text style={{ fontSize: 18 }}>🗑️</Text></TouchableOpacity>
-          <View style={styles.recBar}><Text style={{ color: "#C23B3B", fontWeight: "800" }}>● {Math.floor(rec.sec / 60)}:{String(rec.sec % 60).padStart(2, "0")}</Text><Text style={{ color: colors.textMuted, fontSize: 12 }}>  Enregistrement…</Text></View>
-          <TouchableOpacity onPress={() => stopRec(true)} style={[styles.roundBtn, { backgroundColor: colors.rose }]}><Text style={{ color: "#fff", fontSize: 18 }}>➤</Text></TouchableOpacity>
+      {quoted ? (
+        <View style={styles.quoteBar}>
+          <View style={styles.quoteBarIn}>
+            <Text style={styles.quoteWho} numberOfLines={1}>↩️ {quoted.author.pseudonyme}</Text>
+            <Text style={styles.quoteT} numberOfLines={1}>{quoted.body || (quoted.mediaType === "audio" ? "🎤 Message vocal" : quoted.mediaType === "video" ? "🎬 Vidéo" : "🖼️ Photo")}</Text>
+          </View>
+          <TouchableOpacity onPress={() => setQuoted(null)} style={styles.roundSmall}><Text style={{ fontSize: 15, color: "#8C7A86" }}>✕</Text></TouchableOpacity>
         </View>
-      ) : (
-        <View style={styles.composer}>
-          <TouchableOpacity onPress={pickMedia} style={styles.roundBtn} accessibilityLabel="Ajouter une photo ou une vidéo"><Text style={{ fontSize: 19 }}>📎</Text></TouchableOpacity>
-          <RNTextInput value={reply} onChangeText={setReply} placeholder="Écris ton message…" placeholderTextColor="#A78" multiline style={styles.input} />
-          {reply.trim() || attachment ? (
-            <TouchableOpacity onPress={() => send()} disabled={sending} style={[styles.roundBtn, { backgroundColor: colors.rose }]}><Text style={{ color: "#fff", fontSize: 18 }}>{sending ? "…" : "➤"}</Text></TouchableOpacity>
-          ) : (
-            <TouchableOpacity onPress={startRec} disabled={sending} style={[styles.roundBtn, { backgroundColor: colors.rose }]} accessibilityLabel="Enregistrer un message vocal"><Text style={{ fontSize: 19 }}>🎤</Text></TouchableOpacity>
-          )}
-        </View>
-      )}
+      ) : null}
+      <View style={styles.composer}>
+        {recSec === null ? (
+          <>
+            <TouchableOpacity onPress={pickMedia} style={styles.roundBtn} accessibilityLabel="Ajouter une photo ou une vidéo"><Text style={{ fontSize: 19 }}>📎</Text></TouchableOpacity>
+            <RNTextInput value={reply} onChangeText={setReply} placeholder="Écris ton message…" placeholderTextColor="#B59AA6" multiline style={styles.input} />
+          </>
+        ) : (
+          <Animated.View style={[styles.recBar, { opacity: cancelZone ? 0.6 : 1 }]}>
+            <Text style={{ color: "#C23B3B", fontFamily: "Poppins_700Bold", fontSize: 14 }}>● {Math.floor((recSec || 0) / 60)}:{String((recSec || 0) % 60).padStart(2, "0")}</Text>
+            <Animated.Text numberOfLines={1} style={{ flex: 1, textAlign: "center", color: cancelZone ? "#C23B3B" : "#8C7A86", fontSize: 13, transform: [{ translateX: dragX }] }}>
+              {cancelZone ? "Relâche pour annuler" : "‹ Glisse pour annuler"}
+            </Animated.Text>
+          </Animated.View>
+        )}
+        {reply.trim() || attachment ? (
+          <TouchableOpacity onPress={() => send()} disabled={sending} style={[styles.roundBtn, styles.roundSend]}><Text style={{ color: "#fff", fontSize: 18 }}>{sending ? "…" : "➤"}</Text></TouchableOpacity>
+        ) : (
+          <Animated.View {...mic.panHandlers} style={{ transform: [{ scale: micScale }, { translateX: dragX }] }}>
+            <View style={[styles.roundBtn, recSec !== null ? (cancelZone ? styles.roundCancel : styles.roundRec) : styles.roundSend]} accessibilityLabel="Maintiens pour enregistrer un message vocal, glisse à gauche pour annuler">
+              <Text style={{ fontSize: 19 }}>{cancelZone ? "🗑️" : "🎤"}</Text>
+            </View>
+          </Animated.View>
+        )}
+      </View>
 
       <Modal visible={!!menu} transparent animationType="fade" onRequestClose={() => setMenu(null)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setMenu(null)}>
@@ -290,6 +358,7 @@ export default function ThreadScreen({ route, navigation }: any) {
             {menu?.c ? <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center", marginBottom: 12 }}>
               {EMOJIS.map((e) => <TouchableOpacity key={e} onPress={() => react(menu.c!, e)} style={{ padding: 8, borderRadius: 999, backgroundColor: menu.c!.myReaction === e ? "#FFE0E6" : "#F5EEF2" }}><Text style={{ fontSize: 24 }}>{e}</Text></TouchableOpacity>)}
             </View> : null}
+            {menu?.c ? <PrimaryButton title="↩️  Répondre à ce message" onPress={() => { const c = menu.c!; setMenu(null); setQuoted(c); }} /> : null}
             <PrimaryButton title={t("forum_report")} variant="secondary" onPress={() => openReport(menu?.isPost ? post.id : menu!.c!.id, menu?.isPost ? "postId" : "commentId")} />
           </View>
         </TouchableOpacity>
@@ -323,11 +392,11 @@ const styles = StyleSheet.create({
   muted: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
   reportLink: { color: colors.danger, fontSize: 12 },
   retention: { fontSize: 12, color: colors.textMuted, backgroundColor: "#FFF0E9", borderRadius: 12, padding: spacing.sm, marginBottom: spacing.sm, overflow: "hidden", lineHeight: 17 },
-  who: { fontSize: 12, fontWeight: "700", marginBottom: 2, marginLeft: 6 },
+  who: { fontSize: 12, fontFamily: "Poppins_600SemiBold", marginBottom: 2, marginLeft: 6 },
   bubble: { borderRadius: 20, paddingHorizontal: 13, paddingVertical: 8, shadowColor: "#3B1D33", shadowOpacity: 0.07, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   mine: { backgroundColor: "#FF5470" }, other: { backgroundColor: "#fff" },
-  topic: { fontWeight: "800", fontSize: 15.5, color: colors.prune, marginBottom: 4 },
-  msg: { color: colors.text, fontSize: 15, lineHeight: 21 }, time: { fontSize: 10.5, color: colors.textMuted, alignSelf: "flex-end", marginTop: 3 },
+  topic: { fontFamily: "Poppins_700Bold", fontSize: 15.5, color: colors.prune, marginBottom: 4, lineHeight: 21 },
+  msg: { color: colors.text, fontSize: 15.5, lineHeight: 22, letterSpacing: 0.1 }, time: { fontSize: 10.5, color: colors.textMuted, alignSelf: "flex-end", marginTop: 3 },
   react: { backgroundColor: "#fff", borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2, fontSize: 12, overflow: "hidden" },
   media: { width: 220, height: 200, borderRadius: 14, marginTop: 4, backgroundColor: "#000" },
   mediaHidden: { width: 200, height: 110, borderRadius: 14, marginTop: 4, backgroundColor: "#E7D5FF", alignItems: "center", justifyContent: "center" },
@@ -336,7 +405,13 @@ const styles = StyleSheet.create({
   composer: { flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: 10, paddingVertical: 8, paddingBottom: 12, backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: "#F5E8EC" },
   input: { flex: 1, maxHeight: 110, backgroundColor: "#FFF6F0", borderRadius: 22, paddingHorizontal: 15, paddingTop: 10, paddingBottom: 10, fontSize: 15, color: colors.text },
   roundBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#FFE9EE", alignItems: "center", justifyContent: "center" },
-  recBar: { flex: 1, flexDirection: "row", alignItems: "center", backgroundColor: "#FFF6F0", borderRadius: 22, paddingHorizontal: 16, height: 44 },
+  recBar: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#FFF1F3", borderRadius: 22, paddingHorizontal: 16, height: 44 },
+  roundSend: { backgroundColor: colors.rose }, roundRec: { backgroundColor: "#FF3B5C" }, roundCancel: { backgroundColor: "#8C7A86" },
+  roundSmall: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  quote: { borderLeftWidth: 3, borderLeftColor: colors.rose, backgroundColor: "rgba(255,84,112,0.08)", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5, marginBottom: 5 },
+  quoteWho: { fontFamily: "Poppins_600SemiBold", fontSize: 12, color: colors.rose }, quoteT: { fontSize: 12.5, color: "#7A5C6B" },
+  quoteBar: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingTop: 8, backgroundColor: "#fff" },
+  quoteBarIn: { flex: 1, borderLeftWidth: 3, borderLeftColor: colors.rose, paddingLeft: 8 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: spacing.lg },
   modalCard: { backgroundColor: colors.surface, borderRadius: 16, padding: spacing.lg },
 });

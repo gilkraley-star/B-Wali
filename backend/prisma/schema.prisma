@@ -187,6 +187,9 @@ model ForumComment {
   mediaUrl  String?  // photo ou vidéo jointe (supprimée avec le message)
   mediaType String?  // "image" | "video" | "audio" (message vocal)
   durationSec Int?   // durée d'un message vocal
+  replyToId String?  // réponse à un message précis
+  replyTo   ForumComment?  @relation("ReplyTo", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   ForumComment[] @relation("ReplyTo")
   anonymous Boolean @default(false)
   isHidden  Boolean  @default(false)
   createdAt DateTime @default(now())

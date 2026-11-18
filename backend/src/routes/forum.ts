@@ -90,7 +90,7 @@ router.get("/posts/:id", requireAuth, async (req: AuthRequest, res) => {
       author: { select: { pseudonyme: true } },
       comments: {
         where: { isHidden: false },
-        include: { author: { select: { pseudonyme: true } }, reactions: { select: { emoji: true, userId: true } } },
+        include: { author: { select: { pseudonyme: true } }, reactions: { select: { emoji: true, userId: true } }, replyTo: { select: { id: true, body: true, mediaType: true, anonymous: true, author: { select: { pseudonyme: true } } } } },
         orderBy: { createdAt: "desc" },
         take: MAX_MESSAGES,
       },
@@ -105,7 +105,8 @@ router.get("/posts/:id", requireAuth, async (req: AuthRequest, res) => {
     const counts: Record<string, number> = {};
     for (const r of c.reactions) counts[r.emoji] = (counts[r.emoji] || 0) + 1;
     const { reactions, ...rest } = maskAuthor(c);
-    return { ...rest, mine: c.authorId === me, reactionCounts: counts, myReaction: reactions.find((r: any) => r.userId === me)?.emoji ?? null };
+    const rt = c.replyTo ? { id: c.replyTo.id, body: c.replyTo.body, mediaType: c.replyTo.mediaType, author: { pseudonyme: c.replyTo.anonymous ? "Anonyme" : c.replyTo.author.pseudonyme } } : null;
+    return { ...rest, replyTo: rt, mine: c.authorId === me, reactionCounts: counts, myReaction: reactions.find((r: any) => r.userId === me)?.emoji ?? null };
   });
   res.json({ ...maskAuthor(post), mine: post.authorId === me, comments, maxMessages: MAX_MESSAGES, retentionHours: RETENTION_HOURS });
 });
@@ -116,6 +117,7 @@ const commentSchema = z
     mediaUrl: z.string().optional(),
     mediaType: z.enum(["image", "video", "audio"]).optional(),
     durationSec: z.number().int().min(1).max(180).optional(),
+    replyToId: z.string().optional(),
   })
   .refine((v) => v.body.trim().length > 0 || !!v.mediaUrl, { message: "Écris un message, ou ajoute une photo, une vidéo ou un vocal." })
   .refine((v) => !v.mediaUrl || (isForumMediaUrl(v.mediaUrl) && !!v.mediaType), { message: "Photo ou vidéo invalide." });
@@ -168,6 +170,7 @@ router.post("/posts/:id/comments", requireAuth, async (req: AuthRequest, res) =>
       mediaUrl: parsed.data.mediaUrl ?? null,
       mediaType: parsed.data.mediaType ?? null,
       durationSec: parsed.data.durationSec ?? null,
+      replyToId: parsed.data.replyToId ?? null,
       anonymous: user.anonymousDefault,
     },
   });
