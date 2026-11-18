@@ -11,3 +11,7 @@ mobile/android/
 mobile/ios/
 *.keystore
 *.jks
+
+# le module natif de la bulle doit rester versionné
+!mobile/modules/wali-bubble/android/
+!mobile/modules/wali-bubble/android/**
