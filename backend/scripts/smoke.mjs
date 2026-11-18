@@ -224,9 +224,9 @@ const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJA
   r = await call("GET", `/forum/categories/${theme.id}/posts`, { token: fille });
   check("le sujet apparaît en tête de son thème", r.status === 200 && r.data[0] && r.data[0].id === topicId, JSON.stringify(r.data).slice(0, 120));
   const m4a = Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from("ftypM4A "), Buffer.alloc(40, 1)]);
-  let up = await fetch(base + "/api/forum/media", { method: "POST", headers: { "Content-Type": "audio/mp4", Authorization: "Bearer " + fille }, body: m4a });
-  const upData = await up.json();
-  check("un message vocal est accepté", up.status === 201 && upData.kind === "audio", JSON.stringify(upData));
+  const upv = await fetch(base + "/api/forum/media", { method: "POST", headers: { "Content-Type": "audio/mp4", Authorization: "Bearer " + fille }, body: m4a });
+  const upData = await upv.json();
+  check("un message vocal est accepté", upv.status === 201 && upData.kind === "audio", JSON.stringify(upData));
   r = await call("POST", `/forum/posts/${topicId}/comments`, { token: fille, body: { body: "", mediaUrl: upData.url, mediaType: "audio", durationSec: 5 } });
   check("le vocal est publié dans le chat du sujet", r.status === 201, JSON.stringify(r.data));
   r = await call("GET", `/forum/posts/${topicId}`, { token: fille });
