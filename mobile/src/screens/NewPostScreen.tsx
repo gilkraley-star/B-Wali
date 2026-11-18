@@ -10,7 +10,15 @@ import { ErrorText, FieldLabel, PrimaryButton, ScreenTitle, TextInput } from "..
 export default function NewPostScreen({ route, navigation }: any) {
   const [categoryId, setCategoryId] = useState<string | null>(route.params?.categoryId || null);
   const [cats, setCats] = useState<any[]>([]);
-  useFocusEffect(useCallback(() => { apiRequest<any[]>("/forum/categories").then(setCats).catch(() => {}); }, []));
+  const [catsError, setCatsError] = useState<string | null>(null);
+  const [catsLoading, setCatsLoading] = useState(true);
+  const loadCats = useCallback(() => {
+    setCatsLoading(true); setCatsError(null);
+    apiRequest<any[]>("/forum/categories")
+      .then((r) => { setCats(r); setCatsLoading(false); })
+      .catch((e) => { setCatsLoading(false); setCatsError(e instanceof ApiError ? e.message : "Impossible de charger les thèmes. Vérifie ta connexion."); });
+  }, []);
+  useFocusEffect(loadCats);
   const parents = cats.filter((c) => !c.parentId);
   const [pick, setPick] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -58,7 +66,19 @@ export default function NewPostScreen({ route, navigation }: any) {
                     <Text style={styles.rowT}>{p.titleFr}</Text>
                     <Text style={{ color: "#C24B6A", fontSize: 15 }}>{categoryId === p.id ? "✓" : ""}</Text>
                   </TouchableOpacity>))}
-                {!parents.length ? <Text style={{ color: "#5B4852", padding: 14 }}>Chargement des thèmes…</Text> : null}
+                {catsError ? (
+                  <View style={{ padding: 14, alignItems: "center" }}>
+                    <Text style={{ color: colors.danger, textAlign: "center", marginBottom: 10 }}>{catsError}</Text>
+                    <PrimaryButton title="Réessayer" onPress={loadCats} />
+                  </View>
+                ) : catsLoading ? (
+                  <Text style={{ color: "#5B4852", padding: 14 }}>Chargement des thèmes…</Text>
+                ) : !parents.length ? (
+                  <View style={{ padding: 14, alignItems: "center" }}>
+                    <Text style={{ color: "#5B4852", textAlign: "center", marginBottom: 10 }}>Aucun thème pour l'instant.</Text>
+                    <PrimaryButton title="Réessayer" onPress={loadCats} />
+                  </View>
+                ) : null}
               </ScrollView>
             </View>
           </View>
