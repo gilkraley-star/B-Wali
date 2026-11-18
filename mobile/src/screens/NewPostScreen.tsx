@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Keyboard, Modal, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { themeIcon } from "./ForumScreen";
 import { apiRequest, ApiError } from "../api/client";
 import { useI18n } from "../i18n";
@@ -12,6 +12,9 @@ export default function NewPostScreen({ route, navigation }: any) {
   const [cats, setCats] = useState<any[]>([]);
   useFocusEffect(useCallback(() => { apiRequest<any[]>("/forum/categories").then(setCats).catch(() => {}); }, []));
   const parents = cats.filter((c) => !c.parentId);
+  const [pick, setPick] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const chosen: any = (() => { const c = cats.find((x) => x.id === categoryId); return c ? { ...c, parent: c.parentId ? cats.find((x) => x.id === c.parentId) : null } : null; })();
   const { t } = useI18n();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -39,21 +42,37 @@ export default function NewPostScreen({ route, navigation }: any) {
         <Text style={styles.notice}>{t("forum_pending_note")}</Text>
 
         <FieldLabel>Thème</FieldLabel>
-        {parents.map((p) => {
-          const subs = cats.filter((c) => c.parentId === p.id);
-          return (
-            <View key={p.id} style={{ marginBottom: 8 }}>
-              <Text style={styles.pt}>{themeIcon(p)}  {p.titleFr}</Text>
-              <View style={styles.wrap}>
-                {subs.map((c) => (
-                  <TouchableOpacity key={c.id} onPress={() => setCategoryId(c.id)} style={[styles.chip, categoryId === c.id && styles.chipOn]}>
-                    <Text style={[styles.chipT, categoryId === c.id && { color: "#fff" }]}>{c.titleFr}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+        <TouchableOpacity style={styles.field} activeOpacity={0.85} onPress={() => { Keyboard.dismiss(); setPick(true); }} accessibilityRole="button">
+          <Text style={[styles.fieldT, !chosen && { color: "#A78" }]} numberOfLines={1}>{chosen ? `${themeIcon(chosen.parent || chosen)}  ${chosen.parent ? chosen.parent.titleFr + " › " : ""}${chosen.titleFr}` : "Choisir un thème"}</Text>
+          <Text style={{ color: "#C24B6A", fontSize: 16 }}>▾</Text>
+        </TouchableOpacity>
+        <Modal visible={pick} transparent animationType="slide" onRequestClose={() => setPick(false)}>
+          <View style={styles.back}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setPick(false)} />
+            <View style={styles.sheet}>
+              <Text style={styles.sheetT}>Choisis un thème</Text>
+              <ScrollView style={{ maxHeight: 460 }}>
+                {parents.map((p) => {
+                  const subs = cats.filter((c) => c.parentId === p.id);
+                  const open = openId === p.id;
+                  return (
+                    <View key={p.id}>
+                      <TouchableOpacity style={styles.row} activeOpacity={0.8} onPress={() => (subs.length ? setOpenId(open ? null : p.id) : (setCategoryId(p.id), setPick(false)))}>
+                        <Text style={{ fontSize: 22 }}>{themeIcon(p)}</Text>
+                        <Text style={styles.rowT}>{p.titleFr}</Text>
+                        <Text style={{ color: "#C24B6A", fontSize: 15 }}>{subs.length ? (open ? "▴" : "▾") : categoryId === p.id ? "✓" : ""}</Text>
+                      </TouchableOpacity>
+                      {open ? [{ id: p.id, titleFr: "Général (" + p.titleFr + ")" }, ...subs].map((c: any) => (
+                        <TouchableOpacity key={c.id} style={styles.sub} activeOpacity={0.8} onPress={() => { setCategoryId(c.id); setPick(false); }}>
+                          <Text style={[styles.subT, categoryId === c.id && { color: "#E04868", fontWeight: "800" }]}>{categoryId === c.id ? "✓ " : ""}{c.titleFr}</Text>
+                        </TouchableOpacity>)) : null}
+                    </View>);
+                })}
+                {!parents.length ? <Text style={{ color: "#5B4852", padding: 14 }}>Chargement des thèmes…</Text> : null}
+              </ScrollView>
             </View>
-          );
-        })}
+          </View>
+        </Modal>
 
         <FieldLabel>{t("forum_post_title")}</FieldLabel>
         <TextInput value={title} onChangeText={setTitle} />
@@ -71,6 +90,10 @@ export default function NewPostScreen({ route, navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  field: { backgroundColor: "#fff", borderRadius: 14, borderWidth: 1, borderColor: "#F2D3DA", paddingHorizontal: 14, paddingVertical: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }, fieldT: { color: "#3B1D33", fontWeight: "600", fontSize: 15, flex: 1 },
+  back: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" }, sheet: { backgroundColor: "#FFF6F0", borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 18, paddingBottom: 28 }, sheetT: { fontWeight: "800", fontSize: 17, color: "#3B1D33", marginBottom: 10 },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#fff", borderRadius: 16, paddingVertical: 14, paddingHorizontal: 14, marginBottom: 8 }, rowT: { flex: 1, fontWeight: "700", color: "#3B1D33", fontSize: 15 },
+  sub: { paddingVertical: 12, paddingHorizontal: 18, marginLeft: 22, marginBottom: 4, borderLeftWidth: 2, borderLeftColor: "#F2D3DA" }, subT: { color: "#5B4852", fontSize: 14.5 },
   pt: { color: colors.prune, fontWeight: "700", marginBottom: 6 }, wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { backgroundColor: "#fff", borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: "#F2D3DA" }, chipOn: { backgroundColor: colors.rose, borderColor: colors.rose }, chipT: { color: colors.prune, fontWeight: "600", fontSize: 13 },
   notice: { color: colors.textMuted, fontSize: 13, marginBottom: spacing.md, fontStyle: "italic" },
