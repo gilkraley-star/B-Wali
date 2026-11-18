@@ -48,7 +48,7 @@ export default function HomeScreen({ navigation }: any) {
     sosT.current = setTimeout(() => { const c = sosN.current; sosN.current = 0; if (c === 1) navigation.navigate("Urgence"); }, 520);
   };
   const [gridH, setGridH] = useState(0);
-  const rowH = gridH / 3;
+  const rowH = Math.max(74, gridH / 3);
   const icoS = Math.max(30, Math.min(46, rowH * 0.46));
 
   return (
@@ -57,11 +57,11 @@ export default function HomeScreen({ navigation }: any) {
       <Float delay={2000} style={[s.blob, { top: 120, left: -80, width: 170, height: 170, borderRadius: 85, backgroundColor: "#FFE9A8", opacity: 0.55 }]} />
       <Float delay={4000} style={[s.blob, { top: 430, right: -70, width: 150, height: 150, borderRadius: 75, backgroundColor: "#E7D5FF", opacity: 0.5 }]} />
 
-      <Pulse style={[s.sosWrap, { top: 20 + topPad }]}>
+      <Pulse style={[s.sosWrap, { top: 20 }]}>
         <TouchableOpacity style={s.sos} onPress={sosPress} accessibilityRole="button" accessibilityLabel="SOS urgence. Trois appuis rapides : alerter ma personne de confiance"><Text style={s.sosT}>SOS</Text></TouchableOpacity>
       </Pulse>
 
-      <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 26, paddingBottom: 94 }}>
+      <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 26, paddingBottom: 14 }}>
         <PendingNotice />
         <FadeUp delay={30} style={s.head}>
           <View style={s.logo}><Image source={require("../../assets/logo-emblem.png")} style={{ width: 34, height: 34 }} resizeMode="contain" /></View>
@@ -87,10 +87,10 @@ export default function HomeScreen({ navigation }: any) {
         <FadeUp delay={240}><Text style={s.q}>C'est quoi ton envie aujourd'hui ?</Text></FadeUp>
         <View style={{ flex: 1, minHeight: 0 }} onLayout={(e) => setGridH(e.nativeEvent.layout.height)}>
           {[0, 1, 2].map((r) => (
-            <View key={r} style={{ flex: 1, flexDirection: "row", minHeight: 0 }}>
+            <View key={r} style={[{ flexDirection: "row" }, gridH > 0 ? { height: Math.max(74, gridH / 3) } : { flex: 1 }]}>
               {TILES.slice(r * 3, r * 3 + 3).map((t, i) => (
                 <FadeUp key={t.label} delay={300 + (r * 3 + i) * 50} style={{ flex: 1, padding: 5 }}>
-                  <TouchableOpacity style={[s.tile, { backgroundColor: t.bg, flex: 1, justifyContent: "center" }]} onPress={() => navigation.navigate(t.go)} activeOpacity={0.85} accessibilityRole="button">
+                  <TouchableOpacity style={[s.tile, { backgroundColor: t.bg, flex: 1, justifyContent: "center", overflow: "hidden" }]} onPress={() => navigation.navigate(t.go)} activeOpacity={0.85} accessibilityRole="button">
                     <View style={[s.ico, { width: icoS, height: icoS, borderRadius: icoS / 2 }]}><Text style={{ fontSize: icoS * 0.52 }}>{t.e}</Text></View>
                     <Text style={[s.tileT, { marginTop: rowH < 90 ? 4 : 8 }]} numberOfLines={2}>{t.label}</Text>
                   </TouchableOpacity>

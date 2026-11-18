@@ -1,12 +1,11 @@
 import React, { useRef } from "react";
 import { Alert, StyleSheet, Text, TouchableOpacity } from "react-native";
-import { useTopPad } from "../theme/inset";
 import { sendSos } from "../sos";
 
 // Pastille SOS (maquette) : un appui ouvre l'écran Urgence ; 3 appuis rapides ouvrent le SMS d'alerte avec la position.
 export default function SosChip({ navigation }: { navigation: any }) {
   const n = useRef(0); const tm = useRef<any>(null);
-  const top = 20 + useTopPad();
+  const top = 20;
   const press = () => {
     n.current += 1; clearTimeout(tm.current);
     if (n.current >= 3) { n.current = 0; sendSos(() => Alert.alert("SOS", "Choisis d'abord une personne de confiance dans Réglages, pour qu'elle reçoive ton alerte.", [{ text: "Plus tard" }, { text: "Choisir", onPress: () => navigation.navigate("Main", { screen: "Settings" }) }])); return; }
