@@ -619,9 +619,15 @@ router.patch("/courses/:id/template", async (req: AuthRequest, res) => {
 const annBody = z.object({
   emoji: z.string().max(8).optional(), title: z.string().min(2).max(60), body: z.string().max(140).optional(),
   color: z.enum(["rose", "violet", "bleu", "vert", "jaune"]).optional(), target: z.string().max(30).nullable().optional(),
+  imageUrl: z.string().regex(/^\/uploads\/[\w.-]+$/).nullable().optional(), buttonLabel: z.string().max(30).nullable().optional(), linkUrl: z.string().url().max(300).nullable().optional(),
   active: z.boolean().optional(), endsAt: z.string().datetime().nullable().optional(), country: z.string().length(2).nullable().optional(),
 });
 router.get("/announcements", async (_req, res) => { res.json(await prisma.announcement.findMany({ orderBy: { createdAt: "desc" } })); });
+router.post("/announcements/image", async (req: AuthRequest, res) => {
+  const p = z.object({ dataUrl: z.string().max(5_000_000) }).safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: "Image manquante." });
+  try { res.status(201).json({ url: savePhotoFromDataUrl(p.data.dataUrl) }); } catch (e: any) { res.status(400).json({ error: e.message }); }
+});
 router.post("/announcements", async (req: AuthRequest, res) => {
   const p = annBody.safeParse(req.body);
   if (!p.success) return res.status(400).json({ error: "Titre (2 à 60 lettres) obligatoire." });
@@ -634,7 +640,7 @@ router.patch("/announcements/:id", async (req: AuthRequest, res) => {
   const a = await prisma.announcement.update({ where: { id: req.params.id }, data: { ...p.data, endsAt: p.data.endsAt ? new Date(p.data.endsAt) : p.data.endsAt === null ? null : undefined } });
   res.json(a);
 });
-router.delete("/announcements/:id", async (req, res) => { await prisma.announcement.delete({ where: { id: req.params.id } }).catch(() => undefined); res.json({ ok: true }); });
+router.delete("/announcements/:id", async (req, res) => { const old = await prisma.announcement.findUnique({ where: { id: req.params.id } }); if (old?.imageUrl) deletePhoto(old.imageUrl); await prisma.announcement.delete({ where: { id: req.params.id } }).catch(() => undefined); res.json({ ok: true }); });
 
 // ---------------------------------------------------------------------------
 // Signalements du forum + journal

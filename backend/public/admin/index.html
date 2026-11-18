@@ -296,11 +296,13 @@
     var h = '<p><small>Ces annonces défilent sur l\'accueil des filles, après la carte « Tes prochaines règles » (qui reste toujours prioritaire). Maximum 5 affichées. Utilise-les pour annoncer une formation, un événement ou un message important.</small></p>';
     h += '<div class="card"><b>Nouvelle annonce</b><div class="row" style="margin-top:8px"><input id="a_emoji" placeholder="Emoji" style="max-width:70px" value="📣"><input id="a_title" placeholder="Titre (60 lettres max)" class="grow"></div>' +
       '<div class="row" style="margin-top:8px"><input id="a_body" placeholder="Texte court (140 lettres max)" class="grow"></div>' +
+      '<div style="margin-top:10px"><b style="font-size:13px">🖼️ Annonce en image (facultatif)</b><br><small>Choisis une image : elle est recadrée automatiquement au format du bandeau de l’accueil (7 × 3). Si tu mets une image, elle remplace le texte et la couleur.</small><br><input type="file" id="a_img" accept="image/*" style="margin-top:6px"><div id="a_prev" style="margin-top:6px"></div></div>' +
+      '<div class="row" style="margin-top:8px"><input id="a_btn" placeholder="Texte du bouton (ex. Je m’inscris)" class="grow" maxlength="30"><input id="a_link" placeholder="Lien https://… (facultatif)" class="grow"></div>' +
       '<div class="row" style="margin-top:8px"><select id="a_color">'+Object.keys(COLS).map(function(k){return '<option value="'+k+'">'+COLS[k]+'</option>';}).join("")+'</select>' +
       '<select id="a_target">'+TARGETS.map(function(t){return '<option value="'+t[0]+'">Au clic : '+t[1]+'</option>';}).join("")+'</select>' +
       '<select id="a_country"><option value="">Tous les pays</option><option value="CF">Centrafrique seulement</option><option value="CM">Cameroun seulement</option><option value="TD">Tchad seulement</option><option value="CD">RD Congo seulement</option><option value="CG">Congo-Brazzaville seulement</option></select><small>Fin :</small><input type="date" id="a_end" style="max-width:160px"><button id="a_go">Publier</button></div></div>';
     (state.anns || []).forEach(function(a){
-      h += '<div class="card"><div class="row"><div class="grow"><b>'+esc(a.emoji)+' '+esc(a.title)+'</b><br><small>'+esc(a.body||"")+' · '+esc(COLS[a.color]||a.color)+(a.target?' · ouvre '+esc(a.target):'')+' · '+(a.country?esc(a.country)+' seulement':'tous pays')+(a.endsAt?' · jusqu\'au '+new Date(a.endsAt).toLocaleDateString("fr-FR"):'')+' · '+(a.active?'🟢 visible':'⚪ cachée')+'</small></div>' +
+      h += '<div class="card"><div class="row">'+(a.imageUrl?'<img src="'+esc(a.imageUrl)+'" style="width:110px;border-radius:10px;margin-right:10px">':'')+'<div class="grow"><b>'+esc(a.emoji)+' '+esc(a.title)+'</b><br><small>'+esc(a.body||"")+' · '+esc(COLS[a.color]||a.color)+(a.target?' · ouvre '+esc(a.target):'')+' · '+(a.country?esc(a.country)+' seulement':'tous pays')+(a.endsAt?' · jusqu\'au '+new Date(a.endsAt).toLocaleDateString("fr-FR"):'')+' · '+(a.active?'🟢 visible':'⚪ cachée')+'</small></div>' +
         '<button class="s" data-annact="'+a.id+'" data-v="'+(!a.active)+'">'+(a.active?'Cacher':'Montrer')+'</button><button class="bad" data-anndel="'+a.id+'">Supprimer</button></div></div>';
     });
     return h || '';
@@ -410,11 +412,27 @@
       await api("/admin/cert-templates/"+b.dataset.savetpl, {method:"PATCH", body:body}); flash("Modèle enregistré. Clique sur « Aperçu » pour vérifier."); await load();
     }); });
 
+    var aimg = document.getElementById("a_img");
+    if (aimg) aimg.onchange = function(){
+      var f = aimg.files && aimg.files[0]; if (!f) { state.annImg = null; document.getElementById("a_prev").innerHTML = ""; return; }
+      var im = new Image(); var u = URL.createObjectURL(f);
+      im.onload = function(){
+        var W = 1050, H = 450, c = document.createElement("canvas"); c.width = W; c.height = H;
+        var r = Math.max(W / im.width, H / im.height), w = im.width * r, h = im.height * r;
+        var cx = c.getContext("2d"); cx.fillStyle = "#fff"; cx.fillRect(0, 0, W, H); cx.drawImage(im, (W - w) / 2, (H - h) / 2, w, h);
+        state.annImg = c.toDataURL("image/jpeg", 0.85); URL.revokeObjectURL(u);
+        document.getElementById("a_prev").innerHTML = '<img src="'+state.annImg+'" style="width:100%;max-width:420px;border-radius:14px;display:block"><small>Aperçu tel qu’il apparaîtra.</small>';
+      };
+      im.onerror = function(){ flash("Image illisible.", "err"); };
+      im.src = u;
+    };
     var ago = document.getElementById("a_go");
     if (ago) ago.onclick = act(async function(){
-      var e = document.getElementById("a_end").value;
-      await api("/admin/announcements", {method:"POST", body:{emoji:v("a_emoji")||"📣", title:v("a_title"), body:v("a_body"), color:document.getElementById("a_color").value, target:document.getElementById("a_target").value||null, country:document.getElementById("a_country").value||null, endsAt: e ? new Date(e+"T23:59:00").toISOString() : null}});
-      flash("Annonce publiée : elle défile sur l'accueil."); await load();
+      var e = document.getElementById("a_end").value, imageUrl = null;
+      if (state.annImg) { var up = await api("/admin/announcements/image", {method:"POST", body:{dataUrl: state.annImg}}); imageUrl = up.url; }
+      var link = v("a_link");
+      await api("/admin/announcements", {method:"POST", body:{emoji:v("a_emoji")||"📣", title:v("a_title"), body:v("a_body"), color:document.getElementById("a_color").value, target:document.getElementById("a_target").value||null, imageUrl: imageUrl, buttonLabel: v("a_btn")||null, linkUrl: link||null, country:document.getElementById("a_country").value||null, endsAt: e ? new Date(e+"T23:59:00").toISOString() : null}});
+      state.annImg = null; flash("Annonce publiée : elle défile sur l'accueil."); await load();
     });
     $$("[data-annact]").forEach(function(b){ b.onclick = act(async function(){ await api("/admin/announcements/"+b.dataset.annact, {method:"PATCH", body:{active:b.dataset.v==="true"}}); await load(); }); });
     $$("[data-anndel]").forEach(function(b){ b.onclick = act(async function(){ if(!confirm("Supprimer cette annonce ?")) return; await api("/admin/announcements/"+b.dataset.anndel, {method:"DELETE"}); await load(); }); });

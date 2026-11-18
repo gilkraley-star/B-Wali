@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Dimensions, NativeScrollEvent, NativeSyntheticEvent, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Animated, Dimensions, Image, Linking, NativeScrollEvent, NativeSyntheticEvent, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { apiRequest } from "../api/client";
+import { apiOrigin } from "../api/client";
 import { frToKey, loadCarnets, todayFr, typeOf } from "../storage/carnets";
 
 // Bandeau qui défile sur l'accueil : « Tes prochaines règles » reste toujours prioritaire (première carte,
 // affichée plus longtemps, et le défilement y revient toujours), puis rappels du carnet, formations et annonces.
-interface Slide { key: string; emoji: string; title: string; big?: string; sub?: string; button?: string; target?: string; colors: [string, string]; priority?: boolean }
+interface Slide { key: string; emoji: string; title: string; big?: string; sub?: string; button?: string; target?: string; colors: [string, string]; priority?: boolean; image?: string; link?: string }
 const PALETTE: Record<string, [string, string]> = {
   rose: ["#FF5470", "#FF8A5B"], violet: ["#7B4AE2", "#B07CFF"], bleu: ["#2F80ED", "#56CCF2"], vert: ["#27AE60", "#6FCF97"], jaune: ["#F2994A", "#F2C94C"],
 };
@@ -62,14 +63,14 @@ export default function HomeCarousel({ nextPeriod, navigation }: { nextPeriod: s
     } catch { /* ignore */ }
     try { // annonces
       const anns = await apiRequest<any[]>("/catalog/announcements", { silent: true });
-      anns.forEach((a) => out.push({ key: "a" + a.id, emoji: a.emoji, title: a.title, big: undefined, sub: a.body, button: a.target ? "Découvrir →" : undefined, target: a.target || undefined, colors: PALETTE[a.color] || PALETTE.violet }));
+      anns.forEach((a) => out.push({ key: "a" + a.id, emoji: a.emoji, title: a.title, big: undefined, sub: a.body, button: a.buttonLabel || (a.target || a.linkUrl ? "Découvrir →" : undefined), target: a.target || undefined, link: a.linkUrl || undefined, image: a.imageUrl ? apiOrigin + a.imageUrl : undefined, colors: PALETTE[a.color] || PALETTE.violet }));
     } catch { /* ignore */ }
     setExtra(out);
   }, []);
 
   useFocusEffect(useCallback(() => { build(); idx.current = 0; scroller.current?.scrollTo({ x: 0, animated: false }); }, [build]));
 
-  // Défilement automatique : la carte des règles reste 8 s, les autres 4,5 s, puis retour aux règles
+  // Défilement automatique : une carte toutes les 2 secondes, puis retour aux règles
   useEffect(() => {
     if (slides.length < 2) return;
     const t = setTimeout(() => {
@@ -77,7 +78,7 @@ export default function HomeCarousel({ nextPeriod, navigation }: { nextPeriod: s
       const next = idx.current + 1 >= slides.length ? 0 : idx.current + 1;
       idx.current = next;
       scroller.current?.scrollTo({ x: next * (W + GAP), animated: true });
-    }, idx.current === 0 ? 8000 : 4500);
+    }, 2000);
     return () => clearTimeout(t);
   }, [page, slides.length]);
 
@@ -100,13 +101,13 @@ export default function HomeCarousel({ nextPeriod, navigation }: { nextPeriod: s
           return (
             <Animated.View key={s.key} style={{ width: W, marginRight: i === slides.length - 1 ? 0 : GAP, transform: [{ scale }], opacity }}>
               <LinearGradient colors={s.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.card}>
-                <View style={st.blob1} /><View style={st.blob2} />
-                <Animated.View style={{ transform: [{ translateX: shift }] }}>
+                {s.image ? <Image source={{ uri: s.image }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : <><View style={st.blob1} /><View style={st.blob2} /></>}
+                {s.image ? (s.button && (s.target || s.link) ? <TouchableOpacity style={[st.btn, { position: "absolute", left: 16, bottom: 14, marginTop: 0 }]} onPress={() => (s.link ? Linking.openURL(s.link).catch(() => {}) : navigation.navigate(s.target))}><Text style={[st.btnT, { color: s.colors[0] }]}>{s.button}</Text></TouchableOpacity> : null) : <Animated.View style={{ transform: [{ translateX: shift }] }}>
                   <Text style={st.label}>{s.emoji} {s.title}</Text>
                   {s.big ? <Text style={[st.big, !s.priority && { fontSize: 21, lineHeight: 26 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{s.big}</Text> : null}
                   {s.sub ? <Text style={st.sub} numberOfLines={1}>{s.sub}</Text> : null}
-                  {s.button && s.target ? <TouchableOpacity style={st.btn} onPress={() => navigation.navigate(s.target)}><Text style={[st.btnT, { color: s.colors[0] }]}>{s.button}</Text></TouchableOpacity> : null}
-                </Animated.View>
+                  {s.button && (s.target || s.link) ? <TouchableOpacity style={st.btn} onPress={() => (s.link ? Linking.openURL(s.link).catch(() => {}) : navigation.navigate(s.target))}><Text style={[st.btnT, { color: s.colors[0] }]}>{s.button}</Text></TouchableOpacity> : null}
+                </Animated.View>}
               </LinearGradient>
             </Animated.View>);
         })}

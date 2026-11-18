@@ -396,6 +396,9 @@ model Announcement {
   body      String    @default("")
   color     String    @default("violet") // rose | violet | bleu | vert | jaune
   country   String?   // null = tous les pays ; sinon code pays (ex. CF)
+  imageUrl  String?   // annonce en image (bandeau recadré par l'admin)
+  buttonLabel String? // texte du bouton
+  linkUrl   String?   // lien externe ouvert par le bouton
   target    String?   // écran à ouvrir au clic : Formations | Assistant | Games | Revenus | MonCarnet | Partager
   active    Boolean   @default(true)
   endsAt    DateTime?

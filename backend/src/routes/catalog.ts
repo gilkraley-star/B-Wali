@@ -205,7 +205,7 @@ router.get("/announcements", requireAuth, async (req: AuthRequest, res) => {
   const now = new Date();
   const me = await prisma.user.findUnique({ where: { id: req.userId }, select: { country: true } });
   const list = await prisma.announcement.findMany({ where: { active: true, AND: [{ OR: [{ endsAt: null }, { endsAt: { gt: now } }] }, { OR: [{ country: null }, { country: me?.country || "CF" }] }] }, orderBy: { createdAt: "desc" }, take: 5 });
-  res.json(list.map((a) => ({ id: a.id, emoji: a.emoji, title: a.title, body: a.body, color: a.color, target: a.target })));
+  res.json(list.map((a) => ({ id: a.id, emoji: a.emoji, title: a.title, body: a.body, color: a.color, target: a.target, imageUrl: a.imageUrl, buttonLabel: a.buttonLabel, linkUrl: a.linkUrl })));
 });
 
 // GET /api/catalog/income — activités génératrices de revenus publiées
