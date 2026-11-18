@@ -72,8 +72,10 @@ function VoicePlayer({ url, duration, mine }: { url: string; duration?: number |
   const [snd, setSnd] = useState<Audio.Sound | null>(null);
   const [playing, setPlaying] = useState(false);
   const [pos, setPos] = useState(0);
+  const loading = useRef(false);
   useEffect(() => () => { snd?.unloadAsync().catch(() => {}); }, [snd]);
   const toggle = async () => {
+    if (loading.current) return;
     try {
       if (snd) {
         const st: any = await snd.getStatusAsync();
@@ -81,14 +83,23 @@ function VoicePlayer({ url, duration, mine }: { url: string; duration?: number |
         if (st.isLoaded && st.didJustFinish) await snd.setPositionAsync(0);
         await snd.playAsync(); return;
       }
+      loading.current = true;
       await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
-      const { sound } = await Audio.Sound.createAsync({ uri: apiOrigin + url }, { shouldPlay: true }, (st: any) => {
+      const { sound } = await Audio.Sound.createAsync({ uri: apiOrigin + url }, { shouldPlay: true, isLooping: false }, (st: any) => {
         if (!st.isLoaded) return;
+        if (st.didJustFinish) {
+          // Il faut explicitement mettre en pause avant de revenir au début : sinon le lecteur
+          // repart aussitôt de zéro (le vocal semblait "ne plus s'arrêter", en vrai il rejouait
+          // en boucle à l'infini).
+          setPlaying(false); setPos(0);
+          sound.pauseAsync().then(() => sound.setPositionAsync(0)).catch(() => {});
+          return;
+        }
         setPlaying(st.isPlaying); setPos(Math.round((st.positionMillis || 0) / 1000));
-        if (st.didJustFinish) { setPlaying(false); setPos(0); sound?.setPositionAsync(0).catch(() => {}); }
       });
       setSnd(sound);
     } catch { Alert.alert("Vocal", "Impossible de lire ce message vocal."); }
+    finally { loading.current = false; }
   };
   const total = duration || 0;
   const fmt = (n: number) => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
