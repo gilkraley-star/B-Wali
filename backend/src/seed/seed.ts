@@ -211,6 +211,20 @@ async function main() {
     }
   }
 
+  // Mise à niveau unique pour un serveur déjà organisé avant : ajoute les thèmes manquants (ex. Religion) et les icônes absentes.
+  // Un marqueur évite de recréer ensuite ce que l'équipe supprime volontairement dans l'admin.
+  if (alreadyOrganised && (await prisma.auditLog.count({ where: { action: "seed.forum.topup.v1" } })) === 0) {
+    const maxSort = (await prisma.forumCategory.aggregate({ where: { parentId: null }, _max: { sort: true } }))._max.sort ?? 0;
+    let k = 0;
+    for (const th of tree) {
+      const parent = await prisma.forumCategory.findUnique({ where: { slug: th.slug } });
+      if (parent) { if (!parent.icon) await prisma.forumCategory.update({ where: { id: parent.id }, data: { icon: th.icon } }); continue; }
+      const np = await prisma.forumCategory.create({ data: { slug: th.slug, titleFr: th.titleFr, icon: th.icon, sort: maxSort + 1 + k++ } });
+      for (let si = 0; si < th.subs.length; si++) await prisma.forumCategory.upsert({ where: { slug: th.subs[si].slug }, create: { ...(th.subs[si] as any), parentId: np.id, sort: si }, update: {} });
+    }
+    await prisma.auditLog.create({ data: { actorId: "system", action: "seed.forum.topup.v1", target: "forum" } });
+  }
+
   console.log("Seed terminé.");
 }
 
