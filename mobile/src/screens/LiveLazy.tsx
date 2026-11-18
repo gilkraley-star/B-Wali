@@ -13,9 +13,17 @@ export default function LiveLazy(props: any) {
     let off = false;
     try {
       const lk = require("@livekit/react-native");
-      lk.registerGlobals();
+      // Selon la façon dont Metro empaquette ce module, les fonctions peuvent se trouver
+      // directement sur l'objet, ou sous `.default` : on cherche aux deux endroits plutôt
+      // que de planter avec un message vague si la forme change d'une build à l'autre.
+      const regGlobals = lk?.registerGlobals || lk?.default?.registerGlobals;
+      if (typeof regGlobals !== "function") {
+        throw new Error("registerGlobals introuvable (clés disponibles : " + Object.keys(lk || {}).join(", ") + ")");
+      }
+      regGlobals();
       const mod = require("./LiveScreen");
-      setTimeout(() => { if (!off) setComp(() => mod.default); }, 400);
+      const ScreenComp = mod?.default || mod;
+      setTimeout(() => { if (!off) setComp(() => ScreenComp); }, 400);
     } catch (e: any) { setErr(String(e?.message || e)); }
     return () => { off = true; };
   }, []);
