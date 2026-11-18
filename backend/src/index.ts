@@ -86,7 +86,10 @@ app.get("/telecharger", (_req, res) => {
 // Gestionnaire d'erreurs générique — ne jamais renvoyer de détails internes au client.
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);
-  res.status(500).json({ error: "Une erreur interne est survenue." });
+  // Détail inclus temporairement dans la réponse (pas de donnée sensible) pour diagnostiquer
+  // à distance sans avoir besoin des journaux du serveur.
+  const detail = String(err?.message || err).slice(0, 300);
+  res.status(500).json({ error: `Une erreur interne est survenue. (${detail})` });
 });
 
 const PORT = process.env.PORT || 4000;
