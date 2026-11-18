@@ -70,28 +70,35 @@ export default function HomeCarousel({ nextPeriod, navigation }: { nextPeriod: s
 
   useFocusEffect(useCallback(() => { build(); idx.current = 0; scroller.current?.scrollTo({ x: 0, animated: false }); }, [build]));
 
-  // Défilement automatique : une carte toutes les 2 secondes, puis retour aux règles
+  // Défilement automatique : 3 secondes par carte, en boucle. Le minuteur tourne tout seul : il ne dépend pas
+  // des événements de fin de défilement, que certains téléphones n'envoient pas après un défilement programmé.
+  const n = slides.length;
   useEffect(() => {
-    if (slides.length < 2) return;
-    const t = setTimeout(() => {
+    if (n < 2) return;
+    const id = setInterval(() => {
       if (touching.current) return;
-      const next = idx.current + 1 >= slides.length ? 0 : idx.current + 1;
-      idx.current = next;
+      const next = (idx.current + 1) % n;
+      idx.current = next; setPage(next);
       scroller.current?.scrollTo({ x: next * (W + GAP), animated: true });
-    }, 2000);
-    return () => clearTimeout(t);
-  }, [page, slides.length]);
+    }, 3000);
+    return () => clearInterval(id);
+  }, [n]);
 
+  // Après un geste de la fille : on reprend sa position, puis le défilement repart au bout de 3 secondes.
+  const resume = useRef<any>(null);
   const onEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const i = Math.round(e.nativeEvent.contentOffset.x / (W + GAP));
-    idx.current = i; setPage(i); touching.current = false;
+    const i = Math.max(0, Math.min(n - 1, Math.round(e.nativeEvent.contentOffset.x / (W + GAP))));
+    idx.current = i; setPage(i);
+    clearTimeout(resume.current);
+    resume.current = setTimeout(() => { touching.current = false; }, 3000);
   };
+  useEffect(() => () => clearTimeout(resume.current), []);
 
   return (
     <View>
       <Animated.ScrollView ref={scroller} style={{ flexGrow: 0, height: 150 }} horizontal showsHorizontalScrollIndicator={false} snapToInterval={W + GAP} decelerationRate="fast" scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { x } } }], { useNativeDriver: true })}
-        onScrollBeginDrag={() => { touching.current = true; }} onMomentumScrollEnd={onEnd}
+        onScrollBeginDrag={() => { touching.current = true; clearTimeout(resume.current); }} onScrollEndDrag={onEnd} onMomentumScrollEnd={onEnd}
         contentContainerStyle={{ paddingVertical: 0 }}>
         {slides.map((s, i) => {
           const r = [(i - 1) * (W + GAP), i * (W + GAP), (i + 1) * (W + GAP)];
