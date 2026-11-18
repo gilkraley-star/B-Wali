@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Alert, Dimensions, PermissionsAndroid, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import * as ScreenOrientation from "expo-screen-orientation";
-import { AudioSession, LiveKitRoom, VideoTrack, isTrackReference, useChat, useTracks } from "@livekit/react-native";
+import { AudioSession, LiveKitRoom, useRoomContext, VideoTrack, isTrackReference, useChat, useTracks } from "@livekit/react-native";
 import { Track } from "livekit-client";
 import { ApiError, apiRequest } from "../api/client";
 import { colors } from "../theme/colors";
@@ -27,14 +27,16 @@ export default function LiveScreen({ route, navigation }: any) {
   async function askPermissions(): Promise<boolean> {
     if (Platform.OS !== "android" || !host) return true;
     const r = await PermissionsAndroid.requestMultiple([PermissionsAndroid.PERMISSIONS.CAMERA, PermissionsAndroid.PERMISSIONS.RECORD_AUDIO]);
-    return Object.values(r).every((v) => v === "granted");
+    // Android 12+ : le routage audio (casque/Bluetooth) plante sans cette autorisation ; elle n'est pas obligatoire pour filmer.
+    if (Number(Platform.Version) >= 31) { try { await PermissionsAndroid.request("android.permission.BLUETOOTH_CONNECT" as any); } catch {} }
+    return r[PermissionsAndroid.PERMISSIONS.CAMERA] === "granted" && r[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] === "granted";
   }
 
   async function go() {
     try {
       if (!(await askPermissions())) { setError("Autorise la caméra et le micro pour faire le direct."); return; }
       const t = await apiRequest<Ticket>(`/live/${slug}/${host ? "start" : "join"}`, { method: "POST" });
-      await AudioSession.startAudioSession();
+      try { await AudioSession.startAudioSession(); } catch { /* le direct continue sans routage audio */ }
       setTicket(t); setStarted(true);
     } catch (e) { setError(e instanceof ApiError ? e.message : "Impossible de lancer le direct."); }
   }
@@ -66,7 +68,7 @@ export default function LiveScreen({ route, navigation }: any) {
   if (!ticket) return (<View style={s.center}><Text style={s.msg}>Connexion au direct…</Text></View>);
 
   return (
-    <LiveKitRoom serverUrl={ticket.url} token={ticket.token} connect audio={host} video={host} options={{ adaptiveStream: true, dynacast: true }}
+    <LiveKitRoom serverUrl={ticket.url} token={ticket.token} connect audio={false} video={false} options={{ adaptiveStream: true, dynacast: true }}
       onDisconnected={() => { if (!host) { Alert.alert("Le direct est terminé", "Merci d'avoir suivi !"); navigation.goBack(); } }}>
       <LiveBody slug={slug} host={host} title={ticket.title} canChat={host ? true : !!ticket.canChat} onFinish={finish} />
     </LiveKitRoom>
@@ -79,6 +81,22 @@ function LiveBody({ slug, host, title, canChat, onFinish }: { slug: string; host
   const { chatMessages, send } = useChat();
   const [text, setText] = useState("");
   const beat = useRef<any>(null);
+  const room = useRoomContext();
+  // La formatrice allume caméra et micro APRÈS la connexion (plus sûr que dès l'ouverture) ; une erreur affiche un message au lieu de fermer l'appli.
+  const [camErr, setCamErr] = useState<string | null>(null);
+  useEffect(() => {
+    if (!host) return;
+    let off = false;
+    (async () => {
+      try {
+        await new Promise((r) => setTimeout(r, 600));
+        if (off) return;
+        await room.localParticipant.setMicrophoneEnabled(true).catch(() => {});
+        await room.localParticipant.setCameraEnabled(true);
+      } catch (e: any) { setCamErr(String(e?.message || "Impossible d'allumer la caméra.")); }
+    })();
+    return () => { off = true; };
+  }, [host]);
 
   // Présence : un signal toutes les 30 s pendant que la fille regarde
   useEffect(() => {
@@ -91,7 +109,7 @@ function LiveBody({ slug, host, title, canChat, onFinish }: { slug: string; host
   return (
     <View style={s.screen}>
       {video && isTrackReference(video) ? <VideoTrack trackRef={video} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} objectFit="contain" mirror={false} />
-        : <View style={s.center}><Text style={s.msg}>{host ? "Ta caméra démarre…" : "En attente de l'image de la formatrice…"}</Text></View>}
+        : <View style={s.center}><Text style={s.msg}>{host ? (camErr ? "Caméra indisponible : " + camErr : "Ta caméra démarre…") : "En attente de l'image de la formatrice…"}</Text></View>}
       <View style={s.top}>
         <Text style={s.live}>🔴 EN DIRECT</Text><Text style={s.title} numberOfLines={1}>{title}</Text>
         <TouchableOpacity style={s.end} onPress={onFinish}><Text style={s.endT}>{host ? "Terminer" : "Quitter"}</Text></TouchableOpacity>

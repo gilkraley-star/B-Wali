@@ -57,9 +57,6 @@ export default function HomeScreen({ navigation }: any) {
       <Float delay={2000} style={[s.blob, { top: 120, left: -80, width: 170, height: 170, borderRadius: 85, backgroundColor: "#FFE9A8", opacity: 0.55 }]} />
       <Float delay={4000} style={[s.blob, { top: 430, right: -70, width: 150, height: 150, borderRadius: 75, backgroundColor: "#E7D5FF", opacity: 0.5 }]} />
 
-      <Pulse style={[s.sosWrap, { top: 20 }]}>
-        <TouchableOpacity style={s.sos} onPress={sosPress} accessibilityRole="button" accessibilityLabel="SOS urgence. Trois appuis rapides : alerter ma personne de confiance"><Text style={s.sosT}>SOS</Text></TouchableOpacity>
-      </Pulse>
 
       <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 26, paddingBottom: 14 }}>
         <PendingNotice />
@@ -69,6 +66,9 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={s.hello}>Salut ma belle 👋</Text>
             <Text style={s.name} numberOfLines={1}>{user?.pseudonyme} 💕</Text>
           </View>
+          {isPro && <TouchableOpacity style={s.proMini} onPress={() => navigation.navigate("ProSpace")} accessibilityRole="button"><Text style={s.proMiniT}>{user?.role === "PARTENAIRE" ? "🤝" : "🩺"}</Text></TouchableOpacity>}
+          {user?.role === "ADMIN" && <TouchableOpacity style={s.proMini} onPress={() => navigation.navigate("Admin")} accessibilityRole="button"><Text style={s.proMiniT}>🛠️</Text></TouchableOpacity>}
+          <Pulse><TouchableOpacity style={s.sos} onPress={sosPress} accessibilityRole="button" accessibilityLabel="SOS urgence. Trois appuis rapides : alerter ma personne de confiance"><Text style={s.sosT}>SOS</Text></TouchableOpacity></Pulse>
         </FadeUp>
 
         <FadeUp delay={100} style={{ marginTop: 14 }}><HomeCarousel nextPeriod={estimate?.nextEstimatedStart} navigation={navigation} /></FadeUp>
@@ -97,11 +97,6 @@ export default function HomeScreen({ navigation }: any) {
                 </FadeUp>))}
             </View>))}
         </View>
-        {(isPro || user?.role === "ADMIN") && (
-          <View style={{ flexDirection: "row", gap: 10, marginTop: 6 }}>
-            {isPro && <TouchableOpacity style={s.pro} onPress={() => navigation.navigate("ProSpace")}><Text style={s.proT}>{user?.role === "PARTENAIRE" ? "🤝 Espace partenaire" : "🩺 Espace pro"}</Text></TouchableOpacity>}
-            {user?.role === "ADMIN" && <TouchableOpacity style={s.pro} onPress={() => navigation.navigate("Admin")}><Text style={s.proT}>🛠️ Administration</Text></TouchableOpacity>}
-          </View>)}
       </View>
       {welcome ? <WelcomeBurst name={welcome} onDone={() => setWelcome(null)} /> : null}
     </View>
@@ -114,7 +109,8 @@ const s = StyleSheet.create({
   sosWrap: { position: "absolute", top: 20, right: 18, zIndex: 5 },
   sos: { backgroundColor: "#FF4D5E", paddingVertical: 9, paddingHorizontal: 15, borderRadius: 999, shadowColor: "#FF4D5E", shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
   sosT: { color: "#fff", fontFamily: "Inter_700Bold", fontWeight: "800", fontSize: 12, letterSpacing: 0.5 },
-  head: { flexDirection: "row", alignItems: "center", gap: 11, paddingRight: 70 },
+  head: { flexDirection: "row", alignItems: "center", gap: 10 },
+  proMini: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", shadowColor: "#3B1D33", shadowOpacity: 0.1, shadowRadius: 6, elevation: 2 }, proMiniT: { fontSize: 19 },
   logo: { width: 50, height: 50, borderRadius: 25, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", shadowColor: "#3B1D33", shadowOpacity: 0.1, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   hello: { color: "#FF5470", fontSize: 13, fontFamily: "Inter_700Bold" },
   name: { fontFamily: "Poppins_800ExtraBold", fontSize: 23, color: "#3B1D33", lineHeight: 28 },
