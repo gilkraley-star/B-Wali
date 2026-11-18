@@ -89,9 +89,11 @@ function LiveBody({ slug, host, title, canChat, onFinish }: { slug: string; host
     let off = false;
     (async () => {
       try {
-        await new Promise((r) => setTimeout(r, 600));
+        await new Promise((r) => setTimeout(r, 900));
         if (off) return;
         await room.localParticipant.setMicrophoneEnabled(true).catch(() => {});
+        await new Promise((r) => setTimeout(r, 400));
+        if (off) return;
         await room.localParticipant.setCameraEnabled(true);
       } catch (e: any) { setCamErr(String(e?.message || "Impossible d'allumer la caméra.")); }
     })();

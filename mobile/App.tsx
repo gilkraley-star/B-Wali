@@ -22,6 +22,26 @@ import { KeyboardTapDismiss } from "./src/theme/kb";
 import ErrorBoundary from "./src/components/ErrorBoundary";
 import { startBubbleWatcher } from "./src/bubble";
 
+// Filet de sécurité : une erreur JS qui survient hors du rendu (dans un callback natif, par
+// exemple pendant le direct) ne passe PAS par ErrorBoundary et, en version publiée, ferme
+// l'appli d'un coup sans aucun message. On intercepte ce cas précis pour ne plus jamais fermer
+// l'appli toute seule : on affiche juste une alerte et on continue.
+(() => {
+  const g: any = global as any;
+  if (g.ErrorUtils && !g.__waliErrorHandlerInstalled) {
+    g.__waliErrorHandlerInstalled = true;
+    const prev = g.ErrorUtils.getGlobalHandler?.();
+    g.ErrorUtils.setGlobalHandler((error: any, isFatal?: boolean) => {
+      try { console.warn("Erreur interceptée (appli non fermée) :", error); } catch {}
+      if (!isFatal) { prev?.(error, isFatal); return; }
+      try {
+        const { Alert } = require("react-native");
+        Alert.alert("Oups, un problème est survenu", "Continue d'utiliser Wali normalement ; si l'écran reste figé, reviens en arrière.");
+      } catch {}
+    });
+  }
+})();
+
 // Un tap n'importe où (hors du champ en cours) ferme le clavier ; faire défiler aussi.
 (ScrollView as any).defaultProps = { ...(ScrollView as any).defaultProps, keyboardShouldPersistTaps: "handled", keyboardDismissMode: "on-drag" };
 (FlatList as any).defaultProps = { ...(FlatList as any).defaultProps, keyboardShouldPersistTaps: "handled", keyboardDismissMode: "on-drag" };
