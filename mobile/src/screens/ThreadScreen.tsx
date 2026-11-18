@@ -31,6 +31,8 @@ interface Comment {
 }
 
 const EMOJIS = ["❤️", "👍", "😂", "😮", "😢", "🙏", "👏", "💪"];
+// Choix plus large pour écrire dans un message (pas que des réactions).
+const CHAT_EMOJIS = ["😀", "😂", "🥰", "😍", "😘", "😉", "😊", "🙂", "😇", "🤗", "😭", "😢", "😮", "😡", "😴", "🤒", "🤔", "😅", "🙄", "😳", "❤️", "💕", "💔", "🔥", "✨", "🙏", "👍", "👏", "💪", "🙌", "🤝", "👋", "✋", "💅", "🩸", "🤰", "🤱", "👶", "👧", "👩", "🌸", "🌺", "🎉", "⭐", "✅", "❌", "❓", "❗"];
 const FALLBACK_REASONS = [
   { code: "HAINE", label: "Message haineux ou insultant" }, { code: "RACISME", label: "Racisme" }, { code: "HARCELEMENT", label: "Harcèlement" },
   { code: "VIOLENCE", label: "Menaces ou violence" }, { code: "SEXUEL", label: "Contenu sexuel ou choquant" }, { code: "PROFIL_SUSPECT", label: "Profil suspect" },
@@ -136,6 +138,7 @@ export default function ThreadScreen({ route, navigation }: any) {
   const [reportReason, setReportReason] = useState("");
   const [reasons, setReasons] = useState(FALLBACK_REASONS);
   const [menu, setMenu] = useState<{ c?: Comment; isPost?: boolean } | null>(null);
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const [recSec, setRecSec] = useState<number | null>(null);
   const [cancelZone, setCancelZone] = useState(false);
   const [quoted, setQuoted] = useState<Comment | null>(null);
@@ -344,6 +347,7 @@ export default function ThreadScreen({ route, navigation }: any) {
         {recSec === null ? (
           <>
             <TouchableOpacity onPress={pickMedia} style={styles.roundBtn} accessibilityLabel="Ajouter une photo ou une vidéo"><Text style={{ fontSize: 19 }}>📎</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => setEmojiOpen(true)} style={styles.roundBtn} accessibilityLabel="Ajouter un emoji"><Text style={{ fontSize: 19 }}>😊</Text></TouchableOpacity>
             <RNTextInput value={reply} onChangeText={setReply} placeholder="Écris ton message…" placeholderTextColor="#B59AA6" multiline style={styles.input} />
           </>
         ) : (
@@ -364,6 +368,23 @@ export default function ThreadScreen({ route, navigation }: any) {
           </Animated.View>
         )}
       </View>
+
+      <Modal visible={emojiOpen} transparent animationType="fade" onRequestClose={() => setEmojiOpen(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setEmojiOpen(false)}>
+          <View style={styles.modalCard} onStartShouldSetResponder={() => true}>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
+              {CHAT_EMOJIS.map((e, i) => (
+                <TouchableOpacity key={e + i} onPress={() => setReply((r) => r + e)} style={{ padding: 7 }}>
+                  <Text style={{ fontSize: 24 }}>{e}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity onPress={() => setEmojiOpen(false)} style={{ marginTop: 10, alignSelf: "center" }}>
+              <Text style={{ color: colors.rose, fontWeight: "700" }}>Fermer</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <Modal visible={!!menu} transparent animationType="fade" onRequestClose={() => setMenu(null)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setMenu(null)}>
