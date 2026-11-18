@@ -58,7 +58,7 @@ export default function HomeScreen({ navigation }: any) {
       <Float delay={4000} style={[s.blob, { top: 430, right: -70, width: 150, height: 150, borderRadius: 75, backgroundColor: "#E7D5FF", opacity: 0.5 }]} />
 
 
-      <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 26, paddingBottom: 14 }}>
+      <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 14 }}>
         <PendingNotice />
         <FadeUp delay={30} style={s.head}>
           <View style={s.logo}><Image source={require("../../assets/logo-emblem.png")} style={{ width: 34, height: 34 }} resizeMode="contain" /></View>
