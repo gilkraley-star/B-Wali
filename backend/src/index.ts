@@ -21,6 +21,7 @@ import messagesRoutes from "./routes/messages";
 import gamesRoutes from "./routes/games";
 import path from "path";
 import { UPLOAD_DIR } from "./utils/uploads";
+import { prisma } from "./db";
 
 const app = express();
 app.set("trust proxy", 1); // derrière Caddy : bonne adresse IP pour la limitation de débit
@@ -95,7 +96,25 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 const PORT = process.env.PORT || 4000;
 const server = http.createServer(app);
 attachRealtime(server);
-server.listen(PORT, () => {
-  console.log(`Wali API démarrée sur le port ${PORT}`);
-  startRetentionJob();
+
+// Répare une bascule déjà vue : quand SQLite a lui-même rempli une colonne DateTime ajoutée
+// (ForumPost.lastActivityAt) via son propre CURRENT_TIMESTAMP, le format stocké ("2026-11-18
+// 13:51:47", avec un espace) n'est pas celui que Prisma écrit lui-même ("…T…Z") et le fait
+// planter dès qu'il essaie de le relire (ex. le classement d'Entre Nous). Sans danger à relancer :
+// ne touche que les lignes encore au mauvais format.
+async function repairLegacyDates() {
+  try {
+    await prisma.$executeRawUnsafe(
+      `UPDATE ForumPost SET lastActivityAt = REPLACE(lastActivityAt, ' ', 'T') || '.000Z' WHERE lastActivityAt NOT LIKE '%T%'`
+    );
+  } catch (e) {
+    console.error("Réparation des dates du forum : échec (non bloquant)", e);
+  }
+}
+
+repairLegacyDates().finally(() => {
+  server.listen(PORT, () => {
+    console.log(`Wali API démarrée sur le port ${PORT}`);
+    startRetentionJob();
+  });
 });
