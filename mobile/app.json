@@ -44,7 +44,6 @@
       ],
       "@livekit/react-native-expo-plugin",
       ["expo-location", { "locationAlwaysAndWhenInUsePermission": "Wali utilise ta position uniquement pour l'envoyer à ta personne de confiance quand tu appuies sur SOS.", "locationWhenInUsePermission": "Wali utilise ta position uniquement pour l'envoyer à ta personne de confiance quand tu appuies sur SOS." }],
-      "expo-sms",
       [
         "expo-build-properties",
         {
