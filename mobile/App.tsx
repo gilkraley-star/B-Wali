@@ -36,7 +36,9 @@ import { startBubbleWatcher } from "./src/bubble";
       if (!isFatal) { prev?.(error, isFatal); return; }
       try {
         const { Alert } = require("react-native");
-        Alert.alert("Oups, un problème est survenu", "Continue d'utiliser Wali normalement ; si l'écran reste figé, reviens en arrière.");
+        // Détail technique affiché temporairement, pour diagnostiquer à distance sans accès aux logs du téléphone.
+        const detail = String(error?.stack || error?.message || error).slice(0, 500);
+        Alert.alert("Oups, un problème est survenu", "Continue d'utiliser Wali normalement ; si l'écran reste figé, reviens en arrière.\n\n" + detail);
       } catch {}
     });
   }
