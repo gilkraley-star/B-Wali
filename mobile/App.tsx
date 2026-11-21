@@ -1,8 +1,12 @@
 // Le direct (LiveKit) a besoin de TextEncoder/TextDecoder, qui n'existent pas nativement dans
 // le moteur JS de React Native (Hermes) — d'où l'erreur "Property 'TextDecoder' doesn't exist"
-// qui empêchait le module vidéo de se charger. Ce correctif doit être la toute première ligne
-// exécutée, avant tout le reste de l'appli.
-import "fast-text-encoding";
+// qui empêchait le module vidéo de se charger. Le polyfill "fast-text-encoding" essayé d'abord
+// ne gère pas l'option { fatal: true } utilisée par une dépendance de LiveKit ("the 'fatal'
+// option is unsupported") : on utilise donc "text-encoding", qui implémente la norme complète.
+// Ce correctif doit être la toute première chose exécutée, avant tout le reste de l'appli.
+import { TextEncoder, TextDecoder } from "text-encoding";
+if (typeof (global as any).TextEncoder === "undefined") (global as any).TextEncoder = TextEncoder;
+if (typeof (global as any).TextDecoder === "undefined") (global as any).TextDecoder = TextDecoder;
 import React, { useEffect, useState } from "react";
 import "./src/theme/font";
 import { useFonts } from "expo-font";
