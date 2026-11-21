@@ -1,3 +1,8 @@
+// Le direct (LiveKit) a besoin de TextEncoder/TextDecoder, qui n'existent pas nativement dans
+// le moteur JS de React Native (Hermes) — d'où l'erreur "Property 'TextDecoder' doesn't exist"
+// qui empêchait le module vidéo de se charger. Ce correctif doit être la toute première ligne
+// exécutée, avant tout le reste de l'appli.
+import "fast-text-encoding";
 import React, { useEffect, useState } from "react";
 import "./src/theme/font";
 import { useFonts } from "expo-font";
